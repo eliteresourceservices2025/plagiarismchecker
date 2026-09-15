@@ -1,6 +1,7 @@
 "use client";
 
 import { ExternalLink, ShieldAlert } from "lucide-react";
+import DonutChart from "./DonutChart";
 import type { WinstonPlagiarismResult } from "@/lib/types";
 
 interface WinstonResultCardProps {
@@ -15,21 +16,27 @@ export default function WinstonResultCard({ result }: WinstonResultCardProps) {
   const originality = Math.max(0, 100 - result.score);
   const hasAttack = result.attackDetected.zeroWidthSpace || result.attackDetected.homoglyphAttack;
 
+  const totalWords = result.textWordCount || 1; // guard div-by-zero for an empty scan
+  const identicalPercent = (result.identicalWordCount / totalWords) * 100;
+  const similarPercent = (result.similarWordCount / totalWords) * 100;
+  const originalPercent = Math.max(0, 100 - identicalPercent - similarPercent);
+
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
-      <div className="flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex flex-col items-center gap-2 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
           Winston AI Plagiarism Score
         </span>
-        <span className="text-4xl font-bold text-slate-900">{originality.toFixed(0)}%</span>
-        <span className="text-xs text-slate-400">
-          originality · {result.score.toFixed(1)}% flagged as plagiarized
-        </span>
-        <div className="grid w-full grid-cols-3 gap-2 pt-2 text-center text-xs">
-          <Stat label="Words checked" value={result.textWordCount} />
-          <Stat label="Identical words" value={result.identicalWordCount} />
-          <Stat label="Similar words" value={result.similarWordCount} />
-        </div>
+        <DonutChart
+          centerValue={`${originality.toFixed(0)}%`}
+          centerLabel="original"
+          segments={[
+            { label: "Original", value: originalPercent, color: "#22C55E" },
+            { label: "Similar", value: similarPercent, color: "#F59E0B" },
+            { label: "Identical", value: identicalPercent, color: "#EF4444" },
+          ]}
+        />
+        <span className="pt-1 text-xs text-slate-400">{result.textWordCount} words checked</span>
       </div>
 
       {hasAttack && (
@@ -73,15 +80,6 @@ export default function WinstonResultCard({ result }: WinstonResultCardProps) {
           </ul>
         )}
       </div>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-lg bg-slate-50 py-2">
-      <div className="font-semibold text-slate-700">{value}</div>
-      <div className="text-slate-400">{label}</div>
     </div>
   );
 }

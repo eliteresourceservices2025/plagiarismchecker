@@ -1,7 +1,7 @@
 "use client";
 
 import { FileSearch } from "lucide-react";
-import ScoreGauge from "./ScoreGauge";
+import DonutChart from "./DonutChart";
 import SourceList from "./SourceList";
 import QualityChecks from "./QualityChecks";
 import WinstonResultCard from "./WinstonResultCard";
@@ -85,13 +85,16 @@ function WebResult({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col items-center gap-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <ScoreGauge score={result.originalityScore} />
-        <div className="flex w-full flex-col gap-2 text-sm">
-          <LegendRow color="#22C55E" label="Original" percent={breakdown.originalPercent} />
-          <LegendRow color="#F59E0B" label="Paraphrased" percent={breakdown.paraphrasedPercent} />
-          <LegendRow color="#EF4444" label="Matched" percent={breakdown.matchedPercent} />
-        </div>
+      <div className="flex flex-col items-center rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <DonutChart
+          centerValue={`${Math.round(result.originalityScore)}%`}
+          centerLabel="original"
+          segments={[
+            { label: "Original", value: breakdown.originalPercent, color: "#22C55E" },
+            { label: "Paraphrased", value: breakdown.paraphrasedPercent, color: "#F59E0B" },
+            { label: "Matched", value: breakdown.matchedPercent, color: "#EF4444" },
+          ]}
+        />
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -137,18 +140,6 @@ function WebResult({
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function LegendRow({ color, label, percent }: { color: string; label: string; percent: number }) {
-  return (
-    <div className="flex items-center justify-between rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50">
-      <span className="flex items-center gap-2 text-slate-600">
-        <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: color }} />
-        {label}
-      </span>
-      <span className="font-medium text-slate-700">{percent.toFixed(1)}%</span>
     </div>
   );
 }

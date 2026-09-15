@@ -1,11 +1,15 @@
 @import "tailwindcss";
 
+/* eliteresourceservices.com brand tokens (--p/--pd/--pdd/--pm/--g/--off in
+   their own stylesheet) — pulled from the live site's computed styles. */
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --brand: #4f46e5;
-  --brand-hover: #4338ca;
-  --brand-light: #eef2ff;
+  --background: #faf8ff;
+  --foreground: #3d1a6e;
+  --brand: #8a2be2;
+  --brand-hover: #6c1aba;
+  --brand-light: #ede0fb;
+  --brand-dark: #3d1a6e;
+  --accent-gold: #e2be2b;
 }
 
 @theme inline {
@@ -14,8 +18,10 @@
   --color-brand: var(--brand);
   --color-brand-hover: var(--brand-hover);
   --color-brand-light: var(--brand-light);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-brand-dark: var(--brand-dark);
+  --color-accent-gold: var(--accent-gold);
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-heading);
 }
 
 /* The app doesn't have a dark theme yet, so pin light colors regardless of
@@ -24,6 +30,10 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading), var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
 /* Nicer, thinner scrollbars inside cards/panels. */

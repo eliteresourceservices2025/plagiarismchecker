@@ -158,6 +158,12 @@ export function usePlagiarismCheck() {
             return winstonPlagiarismResult;
           })
         : null;
+      // Claim the promise immediately with a no-op catch so the runtime
+      // never reports it as an unhandled rejection while the web pipeline
+      // below is still in flight — the real handling happens further down
+      // where winstonPromise is awaited inside its own try/catch; a promise
+      // can have any number of independent .catch/.then consumers.
+      winstonPromise?.catch(() => {});
 
       let webResult: CheckResult | null = null;
       let webError: unknown = null;
