@@ -309,6 +309,13 @@ export function usePlagiarismCheck() {
         if (webError) toast.error(`Web search check failed: ${errorMessage(webError)}`);
         if (winstonError) toast.error(`Winston AI check failed: ${errorMessage(winstonError)}`);
         setStage("done");
+      } else if (webError && winstonError && engine === "both") {
+        // Both engines were requested and both failed, for potentially
+        // different reasons (e.g. text too short for Winston's minimum vs.
+        // no search key configured) — show both, not just whichever
+        // happened to be checked first.
+        setError(`Web search: ${errorMessage(webError)} Winston AI: ${errorMessage(winstonError)}`);
+        setStage("error");
       } else {
         setError(errorMessage(webError ?? winstonError));
         setStage("error");

@@ -9,6 +9,28 @@ function isCreditError(status: number, message: string): boolean {
 }
 
 /**
+ * Logs the full raw error response server-side (status + body — safe, none
+ * of this can contain the API key) so a failure like a 403 can actually be
+ * diagnosed from Vercel's function logs later, instead of only ever seeing
+ * the generic message that goes to the client.
+ */
+async function throwForFailedResponse(path: string, res: Response): Promise<never> {
+  const rawBody = await res.text();
+  console.error(`Winston AI ${path} returned HTTP ${res.status}:`, rawBody || "(empty body)");
+
+  let parsed: { message?: string } = {};
+  try {
+    parsed = JSON.parse(rawBody);
+  } catch {
+    // non-JSON error body — message stays undefined, generic fallback used below
+  }
+
+  const message = parsed.message || `Winston ${path} API HTTP ${res.status}`;
+  if (isCreditError(res.status, message)) throw new WinstonCreditError(message);
+  throw new Error(message);
+}
+
+/**
  * fetch() itself can throw before a response is ever received — e.g. the
  * Authorization header being rejected as malformed. Those thrown errors can
  * echo the actual header value (i.e. the API key) back in their message, so
@@ -59,7 +81,6 @@ interface RawPlagiarismResponse {
   attackDetected: { zero_width_space: boolean; homoglyph_attack: boolean };
   credits_used: number;
   credits_remaining: number;
-  message?: string;
 }
 
 export async function checkPlagiarismWithWinston(
@@ -72,13 +93,8 @@ export async function checkPlagiarismWithWinston(
     ...(excludedSources.length > 0 ? { excluded_sources: excludedSources } : {}),
   });
 
-  const data = (await res.json().catch(() => ({}))) as RawPlagiarismResponse;
-
-  if (!res.ok) {
-    const message = data.message || `Winston plagiarism API HTTP ${res.status}`;
-    if (isCreditError(res.status, message)) throw new WinstonCreditError(message);
-    throw new Error(message);
-  }
+  if (!res.ok) await throwForFailedResponse("/plagiarism", res);
+  const data = (await res.json()) as RawPlagiarismResponse;
 
   return {
     score: data.result.score,
@@ -114,7 +130,6 @@ interface RawAIDetectionResponse {
   readability_score: number;
   credits_used: number;
   credits_remaining: number;
-  message?: string;
 }
 
 const MIN_AI_DETECTION_CHARS = 300;
@@ -128,13 +143,8 @@ export async function detectAIContent(text: string, apiKey: string): Promise<Win
 
   const res = await postToWinston("/ai-content-detection", apiKey, { text, sentences: true });
 
-  const data = (await res.json().catch(() => ({}))) as RawAIDetectionResponse;
-
-  if (!res.ok) {
-    const message = data.message || `Winston AI detection API HTTP ${res.status}`;
-    if (isCreditError(res.status, message)) throw new WinstonCreditError(message);
-    throw new Error(message);
-  }
+  if (!res.ok) await throwForFailedResponse("/ai-content-detection", res);
+  const data = (await res.json()) as RawAIDetectionResponse;
 
   return {
     score: data.score,
