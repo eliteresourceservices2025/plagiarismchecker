@@ -2,60 +2,94 @@
 
 A free, standalone plagiarism checker built for the ERS content team. Paste
 any length of blog text, get an originality score, color-coded highlights,
-matched source URLs, and a downloadable PDF report — powered by free-tier
-web search APIs (no shared server-side keys, no database).
+matched source URLs, and a downloadable PDF report.
 
 ## Status
 
-**Phases 1, 2, 3, 5, and part of 7 are done.**
+**Phases 1, 2, 3, 5, and part of 7 are done**, plus a shared-key deployment
+model (see below) and a chunked-request rewrite so checks survive Vercel's
+serverless timeout.
 
 ✅ Implemented:
-- Next.js 16 (App Router) + TypeScript + TailwindCSS scaffold, indigo-accented
+- Next.js 16 (App Router) + TypeScript + TailwindCSS, indigo-accented
   Grammarly-inspired UI
-- Text input with live word/char count, Settings panel (API keys →
-  LocalStorage only, explicit Save/Cancel — never auto-saves partial state)
-- `/api/check` route: sentence tokenizer → client-side smart distinctiveness
-  sampling (max 20 queries) → Serper search with SerpApi fallback → Cheerio
-  content extraction → exact-match + n-gram Jaccard + Dice-coefficient
-  comparison → word-weighted originality scoring
+- `/api/search` + `/api/check`: sentence tokenizer → client-side smart
+  distinctiveness sampling (max 20 queries, sent to `/api/search` in
+  batches of 5 so each request stays well under 10s) → Serper search with
+  SerpApi fallback → Cheerio content extraction → exact-match + n-gram
+  Jaccard + Dice-coefficient comparison → word-weighted originality scoring
 - Results panel: animated score gauge, original/paraphrased/matched
-  breakdown, per-source match list, inline sentence highlighting with an
-  "Edit Text" toggle
-- **Credit monitoring** (Phase 3): per-API usage tracking in LocalStorage,
-  toast alerts at 80/90/95/100% thresholds, a header credit gauge, a
-  persistent banner at 90%+, a full-screen block when both APIs are
-  depleted, a pre-check credit estimate, Serper 6-month expiry tracking, and
-  a Settings → Usage tab with per-API breakdown + manual reset
-- **Result caching** (Phase 3): 24h TTL LocalStorage cache keyed by search
-  phrase, checked client-side before any API call — cache hits never count
-  against credits (verified: re-running an identical check used 0 new
-  queries), 5MB cap with oldest-first eviction, visible/clearable in Settings
-- **PDF export** (Phase 5): client-side jsPDF report — score, breakdown,
-  source table, full color-coded text, disclaimer footer, paginated
-- **Check history** (Phase 7): last 20 checks in LocalStorage with score
-  badge, date, word count, source count; clear-all and per-entry delete
-- **Exclude URLs** (Phase 7): Settings → Advanced lets you list your own
-  domains so republished content doesn't flag itself
+  breakdown, per-source match list, inline sentence highlighting, PDF export
+- **Credit monitoring**: usage tracking, toast alerts at 80/90/95/100%
+  thresholds, header credit gauge, persistent banner, pre-check estimate,
+  Settings → Usage breakdown with manual reset
+- **Result caching**: 24h TTL LocalStorage cache keyed by search phrase —
+  cache hits never touch the network or count against credits
+- **Check history**: last 20 checks, score badges, per-entry delete
+- **Exclude URLs**: Settings → Advanced, so your own sites don't self-flag
+- **Fails loudly, not silently**: if every live search attempt fails (bad
+  key, provider outage), the app throws a clear error instead of quietly
+  returning a misleading "100% original"
 
-⏳ Not yet built:
-- Dark mode, batch checking, Supabase-backed history (would need a Supabase
-  project the team provisions)
-- The plan's chunked-request pattern for surviving Vercel's Hobby-tier 10s
-  function timeout on a real deploy (works today via `maxDuration = 60`,
-  which only takes effect on Pro/self-hosted)
+⏳ Not yet built: dark mode, batch checking, Supabase-backed *shared* usage
+tracking (see note below).
+
+## API keys — shared by default
+
+Unlike the original per-user-LocalStorage-only design, this app now
+supports **shared, server-side API keys** so the team doesn't need everyone
+to sign up individually:
+
+- Set `SERPER_API_KEY` / `SERPAPI_API_KEY` as server environment variables
+  (locally in `.env.local`, or in Vercel's Project Settings → Environment
+  Variables). Once set, *everyone* using the app can run checks immediately
+  — no Settings configuration needed.
+- Anyone can still add their **own personal key** in Settings → API Keys.
+  A personal key always takes priority over the shared one, so if the
+  shared pool runs low, individuals can bring their own capacity.
+
+**Known limitation:** the credit gauge / usage history tracked in Settings
+is per-browser (LocalStorage), not a true shared counter. With one primary
+regular user this stays accurate enough; if several people check heavily
+the same day, each person's local gauge won't reflect the others' usage
+against the real shared key. True shared tracking would need a small
+server-side database (Supabase slots in per the original plan) — worth
+adding later if this becomes a real pain point, not before.
 
 ## Running locally
 
 ```bash
 npm install
+cp .env.example .env.local   # then fill in your own key values
 npm run dev
 ```
 
-Open http://localhost:3000, click **Settings**, and paste your own
-Serper.dev and/or SerpApi API key.
+Open http://localhost:3000 — if `.env.local` has real keys, checks work
+immediately with no Settings configuration.
 
-## Known limitation carried from the plan
+## Deploying
 
-Vercel's free-tier serverless functions cap at 10s; a full check can take
-15–30s. See Section 12 of the original plan doc for the recommended
-chunked-frontend-requests pattern before deploying to a Hobby-tier project.
+1. Push this repo to GitHub (already done if you're reading this on GitHub).
+2. Import the repo into Vercel.
+3. In Vercel → Project Settings → Environment Variables, add
+   `SERPER_API_KEY` and `SERPAPI_API_KEY` with your real values (never
+   commit real keys to the repo — `.env.local` is git-ignored for exactly
+   this reason).
+4. Deploy. Share the Vercel URL with the team — no further setup needed.
+
+### Why this survives Vercel's free-tier timeout
+
+Vercel's Hobby tier caps serverless functions at 10 seconds, but a full
+plagiarism check (search + fetch + compare) can take 15–30s end-to-end if
+done in one shot. This app avoids that by splitting the work across
+multiple small requests instead of one long one:
+
+1. The client samples search queries and checks its LocalStorage cache.
+2. Cache misses are sent to `/api/search` in batches of 5 queries at a
+   time — each batch runs its queries concurrently and returns in a few
+   seconds.
+3. Once all batches are back, `/api/check` does the (fast, CPU-only)
+   ranking + source fetching + comparison and returns the final score.
+
+Each individual request stays comfortably under the 10s cap, so the app
+works on Vercel's free tier without needing a paid plan bump.

@@ -91,6 +91,27 @@ export interface CheckRequestBody {
   /** Cache hits the client already has for some of `queries`, keyed by
    * normalized phrase — the server skips live search for these entirely. */
   cachedResults?: Record<string, SearchResultItem[]>;
+  /** Pre-gathered results from one or more /api/search batch calls. When
+   * present, /api/check skips searching entirely and goes straight to
+   * ranking sources + fetching + comparing — this is what keeps each
+   * request well under a serverless function's execution time limit. */
+  searchResults?: SearchProviderResult[];
+}
+
+export interface SearchBatchRequestBody {
+  queries: SearchQuery[];
+  serperKey?: string;
+  serpapiKey?: string;
+  cachedResults?: Record<string, SearchResultItem[]>;
+}
+
+export interface SearchBatchResponse {
+  results: SearchProviderResult[];
+  freshResults: { phrase: string; results: SearchResultItem[] }[];
+  queriesUsed: { serper: number; serpapi: number };
+  cacheHits: number;
+  errors: string[];
+  exhausted: { serper: boolean; serpapi: boolean };
 }
 
 // --- Credit tracking (lib/creditTracker.ts) ---

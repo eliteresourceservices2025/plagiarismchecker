@@ -14,11 +14,21 @@ const STAGE_LABELS: Record<CheckStage, string> = {
 
 const STAGE_ORDER: CheckStage[] = ["analyzing", "searching", "comparing"];
 
-export default function ProgressBar({ stage }: { stage: CheckStage }) {
+interface ProgressBarProps {
+  stage: CheckStage;
+  searchProgress?: { completedBatches: number; totalBatches: number } | null;
+}
+
+export default function ProgressBar({ stage, searchProgress }: ProgressBarProps) {
   if (stage === "idle" || stage === "done" || stage === "error") return null;
 
   const currentIndex = STAGE_ORDER.indexOf(stage);
   const percent = ((currentIndex + 1) / STAGE_ORDER.length) * 100;
+
+  const label =
+    stage === "searching" && searchProgress && searchProgress.totalBatches > 0
+      ? `Searching the web... (${searchProgress.completedBatches}/${searchProgress.totalBatches} batches)`
+      : STAGE_LABELS[stage];
 
   return (
     <div className="flex flex-col gap-2 animate-fade-in">
@@ -30,7 +40,7 @@ export default function ProgressBar({ stage }: { stage: CheckStage }) {
       </div>
       <p className="flex items-center justify-center gap-1.5 text-sm text-slate-500">
         <Loader2 size={14} className="animate-spin text-brand" />
-        {STAGE_LABELS[stage]}
+        {label}
       </p>
     </div>
   );

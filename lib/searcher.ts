@@ -55,7 +55,9 @@ export async function runSearchesWithCache(
 /**
  * Runs each search query against Serper.dev first, falling back to SerpApi
  * when Serper is unavailable/exhausted/errors out, per the multi-API
- * stacking strategy.
+ * stacking strategy. Queries run concurrently (not one-at-a-time) so a
+ * batch of several queries stays comfortably under a serverless function's
+ * execution time limit — see the plan's "chunked processing" recommendation.
  */
 export async function runSearches(
   queries: SearchQuery[],
@@ -64,46 +66,51 @@ export async function runSearches(
   const results: SearchProviderResult[] = [];
   const errors: string[] = [];
   const queriesUsed = { serper: 0, serpapi: 0 };
+  // Shared across concurrent attempts — a small, harmless race (an extra
+  // wasted call or two right as a key exhausts) in exchange for real
+  // parallelism within a batch.
   const exhausted = { serper: false, serpapi: false };
 
-  for (const q of queries) {
-    const searchPhrase = `"${q.phrase}"`;
-    let handled = false;
+  await Promise.all(
+    queries.map(async (q) => {
+      const searchPhrase = `"${q.phrase}"`;
+      let handled = false;
 
-    if (keys.serperKey && !exhausted.serper) {
-      try {
-        const items = await searchSerper(searchPhrase, keys.serperKey);
-        queriesUsed.serper++;
-        results.push({ provider: "serper", query: q.phrase, results: items });
-        handled = true;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        if (isCreditError(message)) {
-          exhausted.serper = true;
+      if (keys.serperKey && !exhausted.serper) {
+        try {
+          const items = await searchSerper(searchPhrase, keys.serperKey);
+          queriesUsed.serper++;
+          results.push({ provider: "serper", query: q.phrase, results: items });
+          handled = true;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          if (isCreditError(message)) {
+            exhausted.serper = true;
+          }
+          errors.push(`Serper query failed for "${q.phrase}": ${message}`);
         }
-        errors.push(`Serper query failed for "${q.phrase}": ${message}`);
       }
-    }
 
-    if (!handled && keys.serpapiKey && !exhausted.serpapi) {
-      try {
-        const items = await searchSerpApi(searchPhrase, keys.serpapiKey);
-        queriesUsed.serpapi++;
-        results.push({ provider: "serpapi", query: q.phrase, results: items });
-        handled = true;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        if (isCreditError(message)) {
-          exhausted.serpapi = true;
+      if (!handled && keys.serpapiKey && !exhausted.serpapi) {
+        try {
+          const items = await searchSerpApi(searchPhrase, keys.serpapiKey);
+          queriesUsed.serpapi++;
+          results.push({ provider: "serpapi", query: q.phrase, results: items });
+          handled = true;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          if (isCreditError(message)) {
+            exhausted.serpapi = true;
+          }
+          errors.push(`SerpApi query failed for "${q.phrase}": ${message}`);
         }
-        errors.push(`SerpApi query failed for "${q.phrase}": ${message}`);
       }
-    }
 
-    if (!handled) {
-      errors.push(`No search provider available for "${q.phrase}"`);
-    }
-  }
+      if (!handled) {
+        errors.push(`No search provider available for "${q.phrase}"`);
+      }
+    })
+  );
 
   return { results, queriesUsed, errors, exhausted };
 }

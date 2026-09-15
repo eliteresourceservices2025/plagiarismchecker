@@ -2,12 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { tokenizeSentences } from "@/lib/tokenizer";
 import { selectSearchQueries } from "@/lib/sampler";
 import { runSearchesWithCache, rankTopUrls } from "@/lib/searcher";
+import { resolveKeys } from "@/lib/serverKeys";
 import { fetchAllSources } from "@/lib/fetcher";
 import { findBestMatch, classify } from "@/lib/comparator";
 import { computeScore } from "@/lib/scorer";
-import type { CheckRequestBody, CheckResult, SentenceMatch } from "@/lib/types";
+import type { CheckRequestBody, CheckResult, SearchProviderResult, SentenceMatch } from "@/lib/types";
 
-export const maxDuration = 60; // seconds (no-op on Hobby plan's hard 10s cap; documented limitation)
+// Kept generous for the legacy single-shot path (small texts / direct API
+// callers). The normal client flow now pre-searches via /api/search in
+// small batches and passes `searchResults` here, so this call only ranks
+// URLs, fetches source pages, and compares — comfortably under 10s even on
+// Vercel's Hobby tier. See README for the full chunked-request rationale.
+export const maxDuration = 60;
 
 const MIN_WORDS_TO_CHECK = 100;
 
@@ -19,17 +25,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { text, serperKey, serpapiKey, excludeUrls, queries: clientQueries, cachedResults } = body;
+  const {
+    text,
+    excludeUrls,
+    queries: clientQueries,
+    cachedResults,
+    searchResults: preGatheredResults,
+  } = body;
+  const { serperKey, serpapiKey } = resolveKeys(body.serperKey, body.serpapiKey);
 
   if (!text || typeof text !== "string" || !text.trim()) {
     return NextResponse.json({ error: "No text provided" }, { status: 400 });
   }
 
-  if (!serperKey && !serpapiKey) {
+  const usingPreGatheredResults = Array.isArray(preGatheredResults);
+
+  if (!usingPreGatheredResults && !serperKey && !serpapiKey) {
     return NextResponse.json(
       {
         error:
-          "No search API key configured. Add a Serper.dev or SerpApi key in Settings.",
+          "No search API key configured. Ask an admin to set SERPER_API_KEY / SERPAPI_API_KEY, or add your own key in Settings.",
       },
       { status: 400 }
     );
@@ -56,25 +71,40 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Step 2: smart sampling — pick distinctive phrases to search. The client
-  // pre-samples using the same shared logic so it can check its own
-  // LocalStorage result cache first; fall back to sampling here if it didn't.
-  const queries = clientQueries && clientQueries.length > 0 ? clientQueries : selectSearchQueries(sentences);
+  // Step 2 & 3: sampling + web search. Skipped entirely when the client
+  // already gathered results itself via one or more /api/search batches —
+  // that's the normal path and what keeps this request fast.
+  let combinedResults: SearchProviderResult[];
+  let queriesChecked: number;
+  let queriesUsedThisCall = { serper: 0, serpapi: 0 };
+  let cacheHitsThisCall = 0;
+  let freshResultsThisCall: CheckResult["freshResults"] = [];
+  let exhaustedThisCall = { serper: false, serpapi: false };
 
-  // Step 3: web search (Serper primary, SerpApi fallback), skipping any
-  // queries the client already has fresh cached results for.
-  const searchOutcome = await runSearchesWithCache(queries, cachedResults ?? {}, {
-    serperKey,
-    serpapiKey,
-  });
-  warnings.push(...searchOutcome.errors);
-
-  if (searchOutcome.exhausted.serper && searchOutcome.exhausted.serpapi) {
-    warnings.push("All configured search API credits appear to be depleted.");
+  if (usingPreGatheredResults) {
+    combinedResults = preGatheredResults;
+    queriesChecked = combinedResults.length;
+  } else {
+    const queries =
+      clientQueries && clientQueries.length > 0 ? clientQueries : selectSearchQueries(sentences);
+    const searchOutcome = await runSearchesWithCache(queries, cachedResults ?? {}, {
+      serperKey,
+      serpapiKey,
+    });
+    warnings.push(...searchOutcome.errors);
+    if (searchOutcome.exhausted.serper && searchOutcome.exhausted.serpapi) {
+      warnings.push("All configured search API credits appear to be depleted.");
+    }
+    combinedResults = searchOutcome.results;
+    queriesChecked = queries.length;
+    queriesUsedThisCall = searchOutcome.queriesUsed;
+    cacheHitsThisCall = searchOutcome.cacheHits;
+    freshResultsThisCall = searchOutcome.freshResults;
+    exhaustedThisCall = searchOutcome.exhausted;
   }
 
   // Rank and dedupe top matching URLs across all queries.
-  const topUrls = rankTopUrls(searchOutcome.results, excludeUrls ?? [], 15);
+  const topUrls = rankTopUrls(combinedResults, excludeUrls ?? [], 15);
 
   // Step 4: fetch + clean source page content.
   const sources = topUrls.length > 0 ? await fetchAllSources(topUrls) : [];
@@ -107,14 +137,17 @@ export async function POST(req: NextRequest) {
     originalityScore: scoreSummary.originalityScore,
     totalWords: scoreSummary.totalWords,
     sentenceCount: sentences.length,
-    sentencesChecked: queries.length,
+    sentencesChecked: queriesChecked,
     breakdown: scoreSummary.breakdown,
     sentences: sentenceMatches,
     sources: scoreSummary.sources,
-    queriesUsed: searchOutcome.queriesUsed,
-    cacheHits: searchOutcome.cacheHits,
-    freshResults: searchOutcome.freshResults,
-    exhausted: searchOutcome.exhausted,
+    // When the client pre-gathered results, these are all zero/empty here —
+    // the client already has the real totals from its /api/search calls and
+    // merges them in before recording credit usage / history.
+    queriesUsed: queriesUsedThisCall,
+    cacheHits: cacheHitsThisCall,
+    freshResults: freshResultsThisCall,
+    exhausted: exhaustedThisCall,
     warnings,
   };
 

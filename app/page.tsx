@@ -30,7 +30,7 @@ export default function Home() {
   const [excludeUrlsRaw, setExcludeUrlsRaw] = useLocalStorage("plagcheck_exclude_urls", "");
   const [history, setHistory] = useLocalStorage<HistoryEntry[]>("plagcheck_history", []);
 
-  const { stage, result, error, runCheck, reset } = usePlagiarismCheck();
+  const { stage, result, error, runCheck, reset, searchProgress } = usePlagiarismCheck();
   const credits = useCreditMonitor();
 
   const isChecking = stage === "analyzing" || stage === "searching" || stage === "comparing";
@@ -65,12 +65,11 @@ export default function Home() {
       toast.error("Paste some text first.");
       return;
     }
-    if (!serperKey && !serpapiKey) {
-      toast.error("Add a Serper or SerpApi API key in Settings first.");
-      setSettingsOpen(true);
-      return;
-    }
-    if (credits.summary.allExhausted) {
+    // Local credit tracking is a per-browser estimate — with shared
+    // server-side keys, the server is the authoritative source of truth, so
+    // this is only a heads-up, not a hard block. The server still returns a
+    // clear error if the shared key really is out of credits.
+    if (credits.summary.allExhausted && !serperKey && !serpapiKey) {
       setShowDepleted(true);
       return;
     }
@@ -123,7 +122,7 @@ export default function Home() {
         </div>
 
         <div className="flex flex-col gap-3 border-t border-slate-200 pt-4">
-          <ProgressBar stage={stage} />
+          <ProgressBar stage={stage} searchProgress={searchProgress} />
           {!isChecking && !result && <PreCheckEstimate text={text} summary={credits.summary} />}
           <div className="flex flex-wrap justify-center gap-3">
             {result && (
@@ -186,6 +185,10 @@ export default function Home() {
             setSettingsOpen(true);
           }}
           onDismiss={() => setShowDepleted(false)}
+          onCheckAnyway={() => {
+            setShowDepleted(false);
+            runCheck({ text, serperKey, serpapiKey, excludeUrls });
+          }}
         />
       )}
     </div>

@@ -117,19 +117,21 @@ export default function SettingsPanel({
               <div className="flex items-start gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
                 <ShieldCheck size={28} className="shrink-0 text-brand" />
                 <span>
-                  Your API keys are stored only in this browser&apos;s LocalStorage —
-                  they never touch our server except when proxied directly to the
-                  search provider for your own check.
+                  The team&apos;s shared keys are already configured on the server —
+                  you don&apos;t need to add anything here to use the app. Only fill
+                  these in if you want to use your own personal key instead (e.g. the
+                  shared pool ran low). Anything you enter here stays in this
+                  browser&apos;s LocalStorage.
                 </span>
               </div>
               <Field
-                label="Serper.dev API key"
+                label="Serper.dev API key (optional)"
                 hint="2,500 one-time free queries. Get one at serper.dev"
                 value={localSerper}
                 onChange={setLocalSerper}
               />
               <Field
-                label="SerpApi API key"
+                label="SerpApi API key (optional)"
                 hint="250 free queries/month, recurring. Get one at serpapi.com"
                 value={localSerpapi}
                 onChange={setLocalSerpapi}
