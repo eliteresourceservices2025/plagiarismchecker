@@ -5,6 +5,8 @@ interface SyncBody {
   action?: "resetMonthly" | "resetAll";
   serperUsed?: number;
   serpapiUsedThisMonth?: number;
+  winstonUsed?: number;
+  winstonRemaining?: number;
 }
 
 /**
@@ -30,6 +32,8 @@ export async function POST(req: NextRequest) {
       await syncSharedUsage({
         serperUsed: body.serperUsed,
         serpapiUsedThisMonth: body.serpapiUsedThisMonth,
+        winstonUsed: body.winstonUsed,
+        winstonRemaining: body.winstonRemaining,
       });
     }
     return NextResponse.json({ ok: true });

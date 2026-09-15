@@ -14,7 +14,12 @@ interface CreditSettingsProps {
   summary: CreditSummary;
   onResetMonthly: () => Promise<void>;
   onResetAll: () => Promise<void>;
-  onSyncUsage: (usage: { serperUsed?: number; serpapiUsedThisMonth?: number }) => Promise<void>;
+  onSyncUsage: (usage: {
+    serperUsed?: number;
+    serpapiUsedThisMonth?: number;
+    winstonUsed?: number;
+    winstonRemaining?: number;
+  }) => Promise<void>;
 }
 
 export default function CreditSettings({
@@ -27,6 +32,10 @@ export default function CreditSettings({
   const [cacheMb, setCacheMb] = useState<number | null>(null);
   const [serperInput, setSerperInput] = useState(String(state.serper.used));
   const [serpapiInput, setSerpapiInput] = useState(String(state.serpapi.usedThisMonth));
+  const [winstonUsedInput, setWinstonUsedInput] = useState(String(state.winston.used));
+  const [winstonRemainingInput, setWinstonRemainingInput] = useState(
+    state.winston.remaining !== null ? String(state.winston.remaining) : ""
+  );
 
   useEffect(() => {
     refreshCacheSize();
@@ -35,7 +44,9 @@ export default function CreditSettings({
   useEffect(() => {
     setSerperInput(String(state.serper.used));
     setSerpapiInput(String(state.serpapi.usedThisMonth));
-  }, [state.serper.used, state.serpapi.usedThisMonth]);
+    setWinstonUsedInput(String(state.winston.used));
+    setWinstonRemainingInput(state.winston.remaining !== null ? String(state.winston.remaining) : "");
+  }, [state.serper.used, state.serpapi.usedThisMonth, state.winston.used, state.winston.remaining]);
 
   function refreshCacheSize() {
     try {
@@ -70,6 +81,29 @@ export default function CreditSettings({
     try {
       await onSyncUsage({ serperUsed, serpapiUsedThisMonth });
       toast.success("Usage synced for everyone");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Sync failed");
+    }
+  }
+
+  async function handleWinstonSync() {
+    const winstonUsed = Number(winstonUsedInput);
+    if (Number.isNaN(winstonUsed)) {
+      toast.error("Enter a valid number for Winston used.");
+      return;
+    }
+
+    // Remaining is optional to correct — leave it blank to only true up
+    // "used" without touching the last-known remaining balance.
+    const winstonRemaining = winstonRemainingInput.trim() === "" ? undefined : Number(winstonRemainingInput);
+    if (winstonRemaining !== undefined && Number.isNaN(winstonRemaining)) {
+      toast.error("Enter a valid number for Winston remaining, or leave it blank.");
+      return;
+    }
+
+    try {
+      await onSyncUsage({ winstonUsed, winstonRemaining });
+      toast.success("Winston usage synced for everyone");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sync failed");
     }
@@ -178,6 +212,51 @@ export default function CreditSettings({
           </button>
         </div>
       </div>
+
+      {state.winstonKeyConfigured && (
+        <div className="flex flex-col gap-2 rounded-lg border border-dashed border-slate-300 p-3">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+            <RefreshCw size={12} />
+            Sync Winston AI usage
+          </div>
+          <p className="text-xs text-slate-400">
+            Correct the shared count to match gowinston.ai&apos;s own dashboard — e.g. after a
+            credit top-up, or if Winston was used outside this app. Leave &quot;remaining&quot;
+            blank to only true up the used count.
+          </p>
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <label className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="text-[11px] text-slate-500">Winston used</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={winstonUsedInput}
+                  onChange={(e) => setWinstonUsedInput(e.target.value)}
+                  className="w-full min-w-0 rounded-md border border-slate-200 px-2 py-1 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-light"
+                />
+              </label>
+              <label className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="text-[11px] text-slate-500">Winston remaining</span>
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="optional"
+                  value={winstonRemainingInput}
+                  onChange={(e) => setWinstonRemainingInput(e.target.value)}
+                  className="w-full min-w-0 rounded-md border border-slate-200 px-2 py-1 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-light"
+                />
+              </label>
+            </div>
+            <button
+              onClick={handleWinstonSync}
+              className="w-full rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white shadow-sm shadow-brand/30 transition hover:bg-brand-hover"
+            >
+              Sync
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
         <span>

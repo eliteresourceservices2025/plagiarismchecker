@@ -99,7 +99,12 @@ export function useCreditMonitor() {
   const summary = useMemo(() => summarize(state), [state]);
 
   const syncUsage = useCallback(
-    async (usage: { serperUsed?: number; serpapiUsedThisMonth?: number }) => {
+    async (usage: {
+      serperUsed?: number;
+      serpapiUsedThisMonth?: number;
+      winstonUsed?: number;
+      winstonRemaining?: number;
+    }) => {
       const res = await fetch("/api/credits/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

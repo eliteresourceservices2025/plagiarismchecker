@@ -17,7 +17,12 @@ interface SettingsPanelProps {
   creditSummary: CreditSummary;
   onResetMonthly: () => Promise<void>;
   onResetAllCredits: () => Promise<void>;
-  onSyncUsage: (usage: { serperUsed?: number; serpapiUsedThisMonth?: number }) => Promise<void>;
+  onSyncUsage: (usage: {
+    serperUsed?: number;
+    serpapiUsedThisMonth?: number;
+    winstonUsed?: number;
+    winstonRemaining?: number;
+  }) => Promise<void>;
   engine: PlagiarismEngine;
   onEngineChange: (engine: PlagiarismEngine) => void;
   detectAI: boolean;

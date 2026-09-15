@@ -145,6 +145,8 @@ export async function getSharedCreditState(
 export async function syncSharedUsage(usage: {
   serperUsed?: number;
   serpapiUsedThisMonth?: number;
+  winstonUsed?: number;
+  winstonRemaining?: number;
 }): Promise<void> {
   const client = getRedis();
   if (!client) {
@@ -158,6 +160,15 @@ export async function syncSharedUsage(usage: {
   if (usage.serpapiUsedThisMonth !== undefined) {
     ops.push(
       client.set(`credits:serpapi:${currentMonthKey()}:used`, Math.max(0, Math.round(usage.serpapiUsedThisMonth)))
+    );
+  }
+  if (usage.winstonUsed !== undefined) {
+    ops.push(client.set("credits:winston:used", Math.max(0, Math.round(usage.winstonUsed))));
+  }
+  if (usage.winstonRemaining !== undefined) {
+    ops.push(
+      client.set("credits:winston:remaining", Math.max(0, Math.round(usage.winstonRemaining))),
+      client.set("credits:winston:lastUpdated", new Date().toISOString())
     );
   }
   await Promise.all(ops);
