@@ -13,8 +13,9 @@ interface TextEditorProps {
 
 const HIGHLIGHT_CLASSES: Record<SentenceMatch["classification"], string> = {
   original: "",
-  paraphrased: "bg-amber-100 rounded px-0.5 cursor-pointer hover:bg-amber-200",
-  matched: "bg-red-100 rounded px-0.5 cursor-pointer hover:bg-red-200",
+  paraphrased:
+    "bg-amber-100 rounded px-0.5 cursor-pointer transition-colors hover:bg-amber-200",
+  matched: "bg-red-100 rounded px-0.5 cursor-pointer transition-colors hover:bg-red-200",
 };
 
 export default function TextEditor({
@@ -29,8 +30,8 @@ export default function TextEditor({
 
   if (sentences && sentences.length > 0) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 text-slate-900 leading-relaxed whitespace-pre-wrap">
+      <div className="flex h-full flex-col">
+        <div className="flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 text-slate-900 leading-relaxed whitespace-pre-wrap shadow-sm animate-fade-in">
           {renderHighlightedText(text, sentences, onSentenceClick)}
         </div>
         <div className="mt-2 flex gap-4 text-xs text-slate-500">
@@ -42,10 +43,10 @@ export default function TextEditor({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       <textarea
-        className="flex-1 resize-none rounded-lg border border-slate-200 bg-white p-4 text-slate-900 leading-relaxed placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300"
-        placeholder="Paste or type your article here..."
+        className="flex-1 resize-none rounded-xl border border-slate-200 bg-white p-4 text-slate-900 leading-relaxed shadow-sm outline-none transition-shadow placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand-light"
+        placeholder="Paste or type your article here to check its originality against the web…"
         value={text}
         onChange={(e) => onChange(e.target.value)}
         readOnly={readOnly}

@@ -1,5 +1,6 @@
 "use client";
 
+import { FileSearch } from "lucide-react";
 import ScoreGauge from "./ScoreGauge";
 import SourceList from "./SourceList";
 import type { CheckResult } from "@/lib/types";
@@ -11,8 +12,13 @@ interface ResultsPanelProps {
 export default function ResultsPanel({ result }: ResultsPanelProps) {
   if (!result) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-200 p-8 text-center text-slate-400">
-        <p className="text-sm">Your originality score and matched sources will appear here.</p>
+      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white/60 p-8 text-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-light text-brand">
+          <FileSearch size={22} />
+        </span>
+        <p className="max-w-[220px] text-sm text-slate-500">
+          Your originality score and matched sources will appear here.
+        </p>
       </div>
     );
   }
@@ -20,24 +26,24 @@ export default function ResultsPanel({ result }: ResultsPanelProps) {
   const { breakdown } = result;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col items-center gap-4 rounded-lg border border-slate-200 bg-slate-50 p-6">
+    <div className="flex flex-col gap-6 animate-fade-in">
+      <div className="flex flex-col items-center gap-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <ScoreGauge score={result.originalityScore} />
-        <div className="flex w-full flex-col gap-1.5 text-sm">
+        <div className="flex w-full flex-col gap-2 text-sm">
           <LegendRow color="#22C55E" label="Original" percent={breakdown.originalPercent} />
           <LegendRow color="#F59E0B" label="Paraphrased" percent={breakdown.paraphrasedPercent} />
           <LegendRow color="#EF4444" label="Matched" percent={breakdown.matchedPercent} />
         </div>
       </div>
 
-      <div>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
           Matched Sources
         </h3>
         <SourceList sources={result.sources} />
       </div>
 
-      <div className="flex flex-col gap-1 text-xs text-slate-400">
+      <div className="flex flex-col gap-1 px-1 text-xs text-slate-400">
         <span>
           {result.totalWords} words · {result.sentenceCount} sentences · {result.sentencesChecked} searched
         </span>
@@ -47,7 +53,7 @@ export default function ResultsPanel({ result }: ResultsPanelProps) {
       </div>
 
       {result.warnings.length > 0 && (
-        <div className="rounded-md bg-amber-50 p-3 text-xs text-amber-700">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
           {result.warnings.map((w, i) => (
             <p key={i}>{w}</p>
           ))}
@@ -59,7 +65,7 @@ export default function ResultsPanel({ result }: ResultsPanelProps) {
 
 function LegendRow({ color, label, percent }: { color: string; label: string; percent: number }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50">
       <span className="flex items-center gap-2 text-slate-600">
         <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: color }} />
         {label}

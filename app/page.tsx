@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import toast from "react-hot-toast";
+import { ScanSearch, SquarePen } from "lucide-react";
 import Header from "@/components/Header";
 import TextEditor from "@/components/TextEditor";
 import ResultsPanel from "@/components/ResultsPanel";
@@ -35,13 +36,14 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-white">
+    <div className="flex h-screen flex-col bg-background">
       <Header onSettingsClick={() => setSettingsOpen(true)} />
 
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 overflow-hidden p-4 sm:p-6">
-        <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-[1fr_360px]">
+        <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-[1fr_360px] lg:gap-6">
           <div className="flex min-h-0 flex-col">
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <SquarePen size={13} />
               Your Text
             </h2>
             <TextEditor
@@ -54,27 +56,30 @@ export default function Home() {
             />
           </div>
 
-          <div className="min-h-0 overflow-y-auto">
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <div className="flex min-h-0 flex-col">
+            <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <ScanSearch size={13} />
               Originality Score
             </h2>
-            {error ? (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                {error}
-              </div>
-            ) : (
-              <ResultsPanel result={result} />
-            )}
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+              {error ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 shadow-sm">
+                  {error}
+                </div>
+              ) : (
+                <ResultsPanel result={result} />
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-slate-100 pt-4">
+        <div className="flex flex-col gap-3 border-t border-slate-200 pt-4">
           <ProgressBar stage={stage} />
           <div className="flex justify-center gap-3">
             {result && (
               <button
                 onClick={() => reset()}
-                className="rounded-lg border border-slate-200 px-6 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+                className="rounded-lg border border-slate-200 bg-white px-6 py-3 text-sm font-medium text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98]"
               >
                 Edit Text
               </button>
@@ -82,7 +87,7 @@ export default function Home() {
             <button
               onClick={handleCheck}
               disabled={isChecking}
-              className="rounded-lg bg-slate-900 px-8 py-3 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-lg bg-brand px-8 py-3 text-sm font-medium text-white shadow-sm shadow-brand/30 transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none active:scale-[0.98]"
             >
               {isChecking ? "Checking..." : "Check for Plagiarism"}
             </button>
