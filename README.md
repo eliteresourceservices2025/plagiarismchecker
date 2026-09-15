@@ -69,13 +69,28 @@ to sign up individually:
   A personal key always takes priority over the shared ones, so if the
   whole shared pool runs low, individuals can bring their own capacity.
 
-**Known limitation:** the credit gauge / usage history tracked in Settings
-is per-browser (LocalStorage), not a true shared counter. With one primary
-regular user this stays accurate enough; if several people check heavily
-the same day, each person's local gauge won't reflect the others' usage
-against the real shared key. True shared tracking would need a small
-server-side database (Supabase slots in per the original plan) — worth
-adding later if this becomes a real pain point, not before.
+### Shared, live credit tracking (Upstash Redis)
+
+The credit gauge/banners/pre-check estimate are backed by real shared
+state, not a per-browser guess — the **server itself** increments a Redis
+counter at the moment a Serper/SerpApi call actually succeeds, so it can't
+drift, and everyone (any browser, any device) sees the same numbers.
+
+Setup: in the Vercel dashboard, go to your project → **Integrations** (or
+**Storage**) → add **Upstash Redis** from the Marketplace, choose the free
+tier, and connect it to this project. Vercel auto-injects
+`UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — no manual copying
+needed. Redeploy once it's connected.
+
+Without it, the app still works exactly the same — search/check/etc are
+unaffected — the credit gauge just shows a "not configured yet" note and
+stays at a placeholder 0 instead of tracking anything.
+
+The one remaining manual step: **Settings → Usage → Sync with actual
+usage** is for the rare case something used credits *outside* the app
+(e.g. testing a key directly on Serper's own console) — paste the real
+numbers from the provider's dashboard and it corrects the shared count for
+everyone.
 
 ## Running locally
 

@@ -9,18 +9,46 @@
  * Serper supports a stack of keys (SERPER_API_KEY, then SERPER_API_KEY_2)
  * so a second account's free pool kicks in automatically once the first is
  * exhausted, before ever falling back to SerpApi.
+ *
+ * Each key is labeled `shared` or not — only usage against a *shared*
+ * (server env var) key gets recorded to the shared credit store (see
+ * lib/creditStore.ts). A personal key someone added themselves is their
+ * own account, not the team's, so it isn't tracked there.
  */
-export function resolveKeys(clientSerperKey?: string, clientSerpapiKey?: string) {
-  const serverSerperKeys = [process.env.SERPER_API_KEY, process.env.SERPER_API_KEY_2].filter(
+export interface ResolvedKeys {
+  /** Ordered — tried in sequence. */
+  serperKeys: string[];
+  /** Parallel to `serperKeys`: true where that key is a shared server-side one. */
+  serperKeysAreShared: boolean[];
+  serpapiKey?: string;
+  serpapiKeyIsShared: boolean;
+}
+
+export function getServerSerperKeys(): string[] {
+  return [process.env.SERPER_API_KEY, process.env.SERPER_API_KEY_2].filter(
     (k): k is string => Boolean(k)
   );
+}
+
+export function resolveKeys(clientSerperKey?: string, clientSerpapiKey?: string): ResolvedKeys {
+  const serverSerperKeys = getServerSerperKeys();
+
+  const serperKeys: string[] = [];
+  const serperKeysAreShared: boolean[] = [];
 
   // A personal client key is tried first (it's the user's own capacity),
   // then the shared server-side keys in order.
-  const serperKeys = clientSerperKey ? [clientSerperKey, ...serverSerperKeys] : serverSerperKeys;
+  if (clientSerperKey) {
+    serperKeys.push(clientSerperKey);
+    serperKeysAreShared.push(false);
+  }
+  for (const key of serverSerperKeys) {
+    serperKeys.push(key);
+    serperKeysAreShared.push(true);
+  }
 
-  return {
-    serperKeys,
-    serpapiKey: clientSerpapiKey || process.env.SERPAPI_API_KEY || undefined,
-  };
+  const serpapiKey = clientSerpapiKey || process.env.SERPAPI_API_KEY || undefined;
+  const serpapiKeyIsShared = !clientSerpapiKey && Boolean(process.env.SERPAPI_API_KEY);
+
+  return { serperKeys, serperKeysAreShared, serpapiKey, serpapiKeyIsShared };
 }

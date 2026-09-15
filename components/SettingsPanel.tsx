@@ -15,9 +15,9 @@ interface SettingsPanelProps {
   onSaveExcludeUrls: (value: string) => void;
   creditState: CreditState;
   creditSummary: CreditSummary;
-  onResetMonthly: () => void;
-  onResetAllCredits: () => void;
-  onSyncUsage: (usage: { serperUsed?: number; serpapiUsedThisMonth?: number }) => void;
+  onResetMonthly: () => Promise<void>;
+  onResetAllCredits: () => Promise<void>;
+  onSyncUsage: (usage: { serperUsed?: number; serpapiUsedThisMonth?: number }) => Promise<void>;
 }
 
 type Tab = "keys" | "usage" | "advanced";

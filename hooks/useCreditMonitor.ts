@@ -1,21 +1,16 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { useLocalStorage } from "./useLocalStorage";
-import {
-  crossedThresholds,
-  defaultCreditState,
-  recordUsage as recordUsageInState,
-  resetAll as resetAllState,
-  resetMonthly as resetMonthlyState,
-  rolloverIfNeeded,
-  summarize,
-  syncUsage as syncUsageInState,
-} from "@/lib/creditTracker";
+import { crossedThresholds, summarize } from "@/lib/creditTracker";
 import type { CreditState } from "@/lib/types";
 
-const STORAGE_KEY = "plagcheck_credits";
+const EMPTY_STATE: CreditState = {
+  configured: false,
+  serper: { total: 2500, used: 0, firstUsedAt: null, expiresAt: null },
+  serpapi: { usedThisMonth: 0, monthlyLimit: 250, currentMonth: "", resetsOn: new Date().toISOString() },
+  lastUpdated: new Date().toISOString(),
+};
 
 function messageFor(provider: "Serper" | "SerpApi", threshold: number, remaining: number): {
   message: string;
@@ -39,48 +34,98 @@ function messageFor(provider: "Serper" | "SerpApi", threshold: number, remaining
   return { type: "warning", message: `Heads up — you have ~${remaining} checks left on ${provider}.` };
 }
 
+/**
+ * Reads the shared, server-tracked credit state (Upstash Redis, via
+ * /api/credits) — everyone sees the same real numbers, incremented by the
+ * server itself when a search actually happens, not self-reported by each
+ * browser. Falls back to a clean empty state if the fetch fails or the
+ * store isn't configured yet; the app still works either way.
+ */
 export function useCreditMonitor() {
-  const [state, setState, hydrated] = useLocalStorage<CreditState>(STORAGE_KEY, defaultCreditState());
+  const [state, setState] = useState<CreditState>(EMPTY_STATE);
+  const [loading, setLoading] = useState(true);
+  const prevPercentsRef = useRef<{ serper: number; serpapi: number } | null>(null);
 
-  // Roll the SerpApi monthly counter over transparently if a new month started.
-  const rolled = useMemo(() => rolloverIfNeeded(state), [state]);
-  const summary = useMemo(() => summarize(rolled), [rolled]);
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch("/api/credits", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as CreditState;
+      const nextSummary = summarize(data);
 
-  const recordUsage = useCallback(
-    (used: { serper: number; serpapi: number }) => {
-      setState((prev) => {
-        const before = summarize(rolloverIfNeeded(prev));
-        const next = recordUsageInState(prev, used);
-        const after = summarize(next);
-
-        if (used.serper > 0) {
-          for (const t of crossedThresholds(before.serperPercentUsed, after.serperPercentUsed)) {
-            const { message, type } = messageFor("Serper", t, summary.combinedRemaining);
-            fireToast(message, type);
-          }
+      if (prevPercentsRef.current) {
+        const { serper: prevSerper, serpapi: prevSerpapi } = prevPercentsRef.current;
+        for (const t of crossedThresholds(prevSerper, nextSummary.serperPercentUsed)) {
+          const { message, type } = messageFor("Serper", t, nextSummary.combinedRemaining);
+          fireToast(message, type);
         }
-        if (used.serpapi > 0) {
-          for (const t of crossedThresholds(before.serpapiPercentUsed, after.serpapiPercentUsed)) {
-            const { message, type } = messageFor("SerpApi", t, summary.combinedRemaining);
-            fireToast(message, type);
-          }
+        for (const t of crossedThresholds(prevSerpapi, nextSummary.serpapiPercentUsed)) {
+          const { message, type } = messageFor("SerpApi", t, nextSummary.combinedRemaining);
+          fireToast(message, type);
         }
+      }
+      prevPercentsRef.current = {
+        serper: nextSummary.serperPercentUsed,
+        serpapi: nextSummary.serpapiPercentUsed,
+      };
 
-        return next;
-      });
-    },
-    [setState, summary.combinedRemaining]
-  );
+      setState(data);
+    } catch {
+      // network hiccup — keep showing the last known state
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const resetMonthly = useCallback(() => setState((prev) => resetMonthlyState(prev)), [setState]);
-  const resetAll = useCallback(() => setState(() => resetAllState()), [setState]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const summary = useMemo(() => summarize(state), [state]);
+
   const syncUsage = useCallback(
-    (usage: { serperUsed?: number; serpapiUsedThisMonth?: number }) =>
-      setState((prev) => syncUsageInState(prev, usage)),
-    [setState]
+    async (usage: { serperUsed?: number; serpapiUsedThisMonth?: number }) => {
+      const res = await fetch("/api/credits/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(usage),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Sync failed");
+      }
+      await refresh();
+    },
+    [refresh]
   );
 
-  return { state: rolled, summary, recordUsage, resetMonthly, resetAll, syncUsage, hydrated };
+  const resetMonthly = useCallback(async () => {
+    const res = await fetch("/api/credits/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "resetMonthly" }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "Reset failed");
+    }
+    await refresh();
+  }, [refresh]);
+
+  const resetAll = useCallback(async () => {
+    const res = await fetch("/api/credits/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "resetAll" }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "Reset failed");
+    }
+    await refresh();
+  }, [refresh]);
+
+  return { state, summary, syncUsage, resetMonthly, resetAll, refresh, loading };
 }
 
 function fireToast(message: string, type: "warning" | "urgent" | "info") {

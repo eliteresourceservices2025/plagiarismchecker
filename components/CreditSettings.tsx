@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { RefreshCw, Trash2 } from "lucide-react";
+import { RefreshCw, Trash2, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { cacheSizeBytes, purgeExpired } from "@/lib/resultCache";
 import type { CreditState, CreditSummary, ResultCache } from "@/lib/types";
@@ -12,9 +12,9 @@ const MAX_CACHE_MB = 5;
 interface CreditSettingsProps {
   state: CreditState;
   summary: CreditSummary;
-  onResetMonthly: () => void;
-  onResetAll: () => void;
-  onSyncUsage: (usage: { serperUsed?: number; serpapiUsedThisMonth?: number }) => void;
+  onResetMonthly: () => Promise<void>;
+  onResetAll: () => Promise<void>;
+  onSyncUsage: (usage: { serperUsed?: number; serpapiUsedThisMonth?: number }) => Promise<void>;
 }
 
 export default function CreditSettings({
@@ -58,7 +58,7 @@ export default function CreditSettings({
     }
   }
 
-  function handleSync() {
+  async function handleSync() {
     const serperUsed = Number(serperInput);
     const serpapiUsedThisMonth = Number(serpapiInput);
 
@@ -67,12 +67,28 @@ export default function CreditSettings({
       return;
     }
 
-    onSyncUsage({ serperUsed, serpapiUsedThisMonth });
-    toast.success("Usage synced");
+    try {
+      await onSyncUsage({ serperUsed, serpapiUsedThisMonth });
+      toast.success("Usage synced for everyone");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Sync failed");
+    }
   }
 
   return (
     <div className="flex flex-col gap-4">
+      {state.configured ? (
+        <div className="flex items-center gap-1.5 rounded-lg bg-green-50 px-3 py-2 text-xs text-green-700">
+          <Users size={12} />
+          Live and shared — everyone sees these same numbers.
+        </div>
+      ) : (
+        <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          Shared tracking isn&apos;t set up yet — these numbers are just a placeholder. Ask an
+          admin to add the Upstash Redis integration in Vercel.
+        </div>
+      )}
+
       <UsageRow
         label="Serper.dev"
         used={state.serper.used}
@@ -110,9 +126,9 @@ export default function CreditSettings({
           Sync with actual usage
         </div>
         <p className="text-xs text-slate-400">
-          This gauge is tracked in this browser only — with a shared team key, real usage
-          can drift from what's shown here. Paste the real numbers from Serper's/SerpApi's
-          own dashboard to correct it.
+          These numbers update automatically as the team uses the app. Only needed if usage
+          happened outside the app (e.g. testing a key directly on Serper's console) and the
+          shared count needs to be trued up to match the real dashboard.
         </p>
         <div className="flex flex-col gap-2">
           <div className="flex gap-2">

@@ -46,7 +46,9 @@ export default function Home() {
     if (lastRecordedResult.current === marker) return;
     lastRecordedResult.current = marker;
 
-    credits.recordUsage(result.queriesUsed);
+    // The server already recorded real usage against the shared counters
+    // at the moment each search happened — just pull the fresh numbers.
+    credits.refresh();
     setHistory((prev) => addEntry(prev, toHistoryEntry(text, result)));
 
     if (result.cacheHits > 0) {
@@ -178,13 +180,21 @@ export default function Home() {
         onSaveExcludeUrls={setExcludeUrlsRaw}
         creditState={credits.state}
         creditSummary={credits.summary}
-        onResetMonthly={() => {
-          credits.resetMonthly();
-          toast.success("SerpApi counter reset");
+        onResetMonthly={async () => {
+          try {
+            await credits.resetMonthly();
+            toast.success("SerpApi counter reset");
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Reset failed");
+          }
         }}
-        onResetAllCredits={() => {
-          credits.resetAll();
-          toast.success("All usage counters reset");
+        onResetAllCredits={async () => {
+          try {
+            await credits.resetAll();
+            toast.success("All usage counters reset");
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Reset failed");
+          }
         }}
         onSyncUsage={credits.syncUsage}
       />

@@ -1,11 +1,17 @@
 import { normalizeQueryKey } from "./resultCache";
+import { recordServerUsage } from "./creditStore";
 import type { SearchProviderResult, SearchQuery, SearchResultItem } from "./types";
 
 export interface SearcherKeys {
   /** Ordered — tried in sequence, each key's own exhaustion falling
    * through to the next, before ever falling back to SerpApi. */
   serperKeys?: string[];
+  /** Parallel to `serperKeys`: true where that key is a shared/server key —
+   * only usage against those gets recorded to the shared credit store,
+   * never a personal key someone added themselves in Settings. */
+  serperKeysAreShared?: boolean[];
   serpapiKey?: string;
+  serpapiKeyIsShared?: boolean;
 }
 
 export interface SearchOutcome {
@@ -69,6 +75,7 @@ export async function runSearches(
   const errors: string[] = [];
   const queriesUsed = { serper: 0, serpapi: 0 };
   const serperKeys = keys.serperKeys ?? [];
+  const serperKeysAreShared = keys.serperKeysAreShared ?? [];
   // Shared across concurrent attempts — a small, harmless race (an extra
   // wasted call or two right as a key exhausts) in exchange for real
   // parallelism within a batch. One exhaustion flag per Serper key, so a
@@ -88,6 +95,9 @@ export async function runSearches(
           queriesUsed.serper++;
           results.push({ provider: "serper", query: q.phrase, results: items });
           handled = true;
+          if (serperKeysAreShared[i]) {
+            await recordServerUsage("serper");
+          }
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           if (isCreditError(message)) {
@@ -104,6 +114,9 @@ export async function runSearches(
           queriesUsed.serpapi++;
           results.push({ provider: "serpapi", query: q.phrase, results: items });
           handled = true;
+          if (keys.serpapiKeyIsShared) {
+            await recordServerUsage("serpapi");
+          }
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           if (isCreditError(message)) {

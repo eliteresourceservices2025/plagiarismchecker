@@ -137,11 +137,18 @@ export interface SearchBatchResponse {
   exhausted: { serper: boolean; serpapi: boolean };
 }
 
-// --- Credit tracking (lib/creditTracker.ts) ---
+// --- Credit tracking (lib/creditTracker.ts, lib/creditStore.ts) ---
+//
+// Shared, server-side, real-time state (Upstash Redis) — every viewer sees
+// the same numbers, incremented by the server itself at the moment a real
+// Serper/SerpApi call succeeds (not self-reported by the client, so it
+// can't drift). `configured: false` means the Upstash Redis integration
+// hasn't been set up yet — the app still works, tracking is just inactive.
 
 export interface CreditState {
+  configured: boolean;
   serper: {
-    total: number;
+    total: number; // scales with how many SERPER_API_KEY[_2] are configured
     used: number;
     firstUsedAt: string | null;
     expiresAt: string | null;
@@ -156,6 +163,7 @@ export interface CreditState {
 }
 
 export interface CreditSummary {
+  configured: boolean;
   serperRemaining: number;
   serperPercentUsed: number;
   serpapiRemaining: number;
