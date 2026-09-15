@@ -8,6 +8,31 @@ function isCreditError(status: number, message: string): boolean {
   return status === 402 || status === 429 || /credit|quota|limit/i.test(message);
 }
 
+/**
+ * fetch() itself can throw before a response is ever received — e.g. the
+ * Authorization header being rejected as malformed. Those thrown errors can
+ * echo the actual header value (i.e. the API key) back in their message, so
+ * they must never be forwarded to the client as-is. Log the real cause
+ * server-side only and surface a generic, safe message instead.
+ */
+async function postToWinston(path: string, apiKey: string, body: unknown): Promise<Response> {
+  try {
+    return await fetch(`${API_BASE}${path}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    console.error(`Winston AI request to ${path} failed before a response was received:`, err);
+    throw new Error(
+      "Couldn't reach Winston AI — check that WINSTON_API_KEY is set correctly (no extra whitespace or line breaks)."
+    );
+  }
+}
+
 interface RawPlagiarismSource {
   score: number;
   canAccess: boolean;
@@ -42,16 +67,9 @@ export async function checkPlagiarismWithWinston(
   apiKey: string,
   excludedSources: string[] = []
 ): Promise<WinstonPlagiarismResult> {
-  const res = await fetch(`${API_BASE}/plagiarism`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      text,
-      ...(excludedSources.length > 0 ? { excluded_sources: excludedSources } : {}),
-    }),
+  const res = await postToWinston("/plagiarism", apiKey, {
+    text,
+    ...(excludedSources.length > 0 ? { excluded_sources: excludedSources } : {}),
   });
 
   const data = (await res.json().catch(() => ({}))) as RawPlagiarismResponse;
@@ -108,14 +126,7 @@ export async function detectAIContent(text: string, apiKey: string): Promise<Win
     );
   }
 
-  const res = await fetch(`${API_BASE}/ai-content-detection`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ text, sentences: true }),
-  });
+  const res = await postToWinston("/ai-content-detection", apiKey, { text, sentences: true });
 
   const data = (await res.json().catch(() => ({}))) as RawAIDetectionResponse;
 

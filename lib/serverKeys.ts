@@ -32,9 +32,12 @@ export function getServerSerperKeys(): string[] {
 
 /** Winston AI is a server-only shared key (no personal-key override in
  * Settings) — it's a paid trial the team is evaluating, not a per-user
- * account like Serper/SerpApi. */
+ * account like Serper/SerpApi. Trimmed defensively: a stray trailing
+ * newline/space from pasting the value into a dashboard is an easy mistake
+ * and silently breaks the Authorization header otherwise. */
 export function getServerWinstonKey(): string | undefined {
-  return process.env.WINSTON_API_KEY || undefined;
+  const trimmed = process.env.WINSTON_API_KEY?.trim();
+  return trimmed || undefined;
 }
 
 export function resolveKeys(clientSerperKey?: string, clientSerpapiKey?: string): ResolvedKeys {
