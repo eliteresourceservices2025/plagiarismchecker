@@ -2,27 +2,42 @@
 
 A free, standalone plagiarism checker built for the ERS content team. Paste
 any length of blog text, get an originality score, color-coded highlights,
-matched source URLs, and a downloadable PDF report.
+matched source URLs, and a downloadable PDF report — checked via this app's
+own Serper/SerpApi web-search pipeline, Winston AI's plagiarism API, or
+both at once.
 
 ## Status
 
 **Phases 1, 2, 3, 5, and part of 7 are done**, plus a shared-key deployment
-model (see below) and a chunked-request rewrite so checks survive Vercel's
-serverless timeout.
+model (see below), a chunked-request rewrite so checks survive Vercel's
+serverless timeout, a Winston AI integration (alternate plagiarism engine +
+AI-content detection), and ERS brand styling.
 
 ✅ Implemented:
-- Next.js 16 (App Router) + TypeScript + TailwindCSS, indigo-accented
-  Grammarly-inspired UI
+- Next.js 16 (App Router) + TypeScript + TailwindCSS, styled with
+  eliteresourceservices.com's own brand colors (`#8A2BE2` purple primary)
+  and type system (Source Sans 3 headings, Inter body)
 - `/api/search` + `/api/check`: sentence tokenizer → client-side smart
   distinctiveness sampling (max 20 queries, sent to `/api/search` in
   batches of 5 so each request stays well under 10s) → Serper search with
   SerpApi fallback → Cheerio content extraction → exact-match + n-gram
   Jaccard + Dice-coefficient comparison → word-weighted originality scoring
-- Results panel: animated score gauge, original/paraphrased/matched
-  breakdown, per-source match list, inline sentence highlighting, PDF export
+- **Winston AI integration** (optional, see below):
+  - An alternate **plagiarism engine** — sends text straight to
+    gowinston.ai's own web-search-and-match API instead of this app's
+    pipeline, shown as its own result card. Selectable in Settings →
+    Advanced: Web Search, Winston AI, or **Both** at once (runs
+    concurrently; if one engine fails the other's result still shows)
+  - **AI-generated-content detection** — an independent check (Winston's
+    "Human Score") that can run alongside either plagiarism engine,
+    flagging sentences likely written by AI
+- Results panel: donut-chart score breakdown (original/paraphrased/matched,
+  or original/similar/identical for Winston) with legend and center score,
+  per-source match list, inline sentence highlighting, PDF export
 - **Credit monitoring**: usage tracking, toast alerts at 80/90/95/100%
-  thresholds, header credit gauge, persistent banner, pre-check estimate,
-  Settings → Usage breakdown with manual reset
+  thresholds, header credit gauge, persistent banner, pre-check estimate
+  (engine-aware — quotes Serper/SerpApi, Winston, or both), Settings →
+  Usage breakdown with manual reset
 - **Result caching**: 24h TTL LocalStorage cache keyed by search phrase —
   cache hits never touch the network or count against credits
 - **Check history**: last 20 checks, score badges, per-entry delete
@@ -48,8 +63,10 @@ serverless timeout.
   - Manual credit-usage sync (Settings → Usage) to correct the per-browser
     gauge against Serper's/SerpApi's real dashboard numbers
 
-⏳ Not yet built: dark mode, batch checking, Supabase-backed *shared* usage
-tracking (see note below).
+⏳ Not yet built: dark mode, batch checking, and merging Winston's
+plagiarism result into the self-plagiarism/history comparison (it's
+tracked as a separate result shape from the Serper/SerpApi `CheckResult`
+by design — see `lib/winston.ts`).
 
 ## API keys — shared by default
 
@@ -69,12 +86,31 @@ to sign up individually:
   A personal key always takes priority over the shared ones, so if the
   whole shared pool runs low, individuals can bring their own capacity.
 
+### Winston AI (optional) — alternate engine + AI-content detection
+
+Set `WINSTON_API_KEY` as a server environment variable to enable:
+- **Winston AI** as a selectable plagiarism engine (Settings → Advanced),
+  alongside a **Both** mode that runs it and Web Search concurrently
+- An **AI-content detection** check (toggle in the same panel) that flags
+  sentences likely written by AI, shown as its own card
+
+Get a key at [gowinston.ai](https://gowinston.ai) (14-day free trial, then
+a paid plan). Unlike Serper/SerpApi, this is **server-side only** — there's
+no personal-key override in Settings, since it's a shared team
+subscription rather than a free per-user account.
+
+Winston bills per word (2 credits/word for the plagiarism scan) rather
+than per query, and its own API response tells you exactly how many
+credits remain after every call — no constant to configure or keep in
+sync.
+
 ### Shared, live credit tracking (Upstash Redis)
 
 The credit gauge/banners/pre-check estimate are backed by real shared
 state, not a per-browser guess — the **server itself** increments a Redis
-counter at the moment a Serper/SerpApi call actually succeeds, so it can't
-drift, and everyone (any browser, any device) sees the same numbers.
+counter at the moment a Serper/SerpApi/Winston call actually succeeds, so
+it can't drift, and everyone (any browser, any device) sees the same
+numbers.
 
 Setup: in the Vercel dashboard, go to your project → **Integrations** (or
 **Storage**) → add **Upstash Redis** from the Marketplace, choose the free
@@ -83,8 +119,12 @@ tier, and connect it to this project. Vercel auto-injects
 needed. Redeploy once it's connected.
 
 Without it, the app still works exactly the same — search/check/etc are
-unaffected — the credit gauge just shows a "not configured yet" note and
-stays at a placeholder 0 instead of tracking anything.
+unaffected — the credit gauge just shows a "not configured yet" note. For
+Serper/SerpApi it stays at a placeholder 0; Winston is the exception —
+since Winston's own response always includes the real remaining balance,
+the browser that ran the check caches and displays that number locally
+even without Redis (see `lib/localWinstonCredits.ts`), just not shared
+across other browsers/devices the way Redis-backed tracking is.
 
 The one remaining manual step: **Settings → Usage → Sync with actual
 usage** is for the rare case something used credits *outside* the app
@@ -110,7 +150,12 @@ immediately with no Settings configuration.
 3. In Vercel → Project Settings → Environment Variables, add
    `SERPER_API_KEY` and `SERPAPI_API_KEY` with your real values (never
    commit real keys to the repo — `.env.local` is git-ignored for exactly
-   this reason).
+   this reason). Add `WINSTON_API_KEY` too if you want the Winston AI
+   engine and AI-content detection available — paste the value in cleanly
+   once; a stray extra paste or line break in the field breaks the
+   Authorization header (surfaces as a generic "couldn't reach Winston AI"
+   error rather than anything more specific, since the real header value
+   is never echoed back to the client).
 4. Deploy. Share the Vercel URL with the team — no further setup needed.
 
 ### Why this survives Vercel's free-tier timeout
