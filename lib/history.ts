@@ -1,6 +1,7 @@
 import type { CheckResult, HistoryEntry } from "./types";
 
 const MAX_ENTRIES = 20;
+const MAX_STORED_TEXT_CHARS = 50_000; // caps LocalStorage growth on very long pastes
 
 export function toHistoryEntry(text: string, result: CheckResult): HistoryEntry {
   const id =
@@ -12,6 +13,7 @@ export function toHistoryEntry(text: string, result: CheckResult): HistoryEntry 
     id,
     createdAt: new Date().toISOString(),
     preview: text.trim().slice(0, 120),
+    text: text.trim().slice(0, MAX_STORED_TEXT_CHARS),
     originalityScore: result.originalityScore,
     totalWords: result.totalWords,
     sourceCount: result.sources.length,

@@ -113,6 +113,9 @@ export default function Home() {
                 if (result) reset();
               }}
               sentences={result?.sentences}
+              selfMatchIndices={
+                result?.selfMatches.length ? new Set(result.selfMatches.map((m) => m.index)) : undefined
+              }
             />
           </div>
 

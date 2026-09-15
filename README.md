@@ -38,6 +38,15 @@ serverless timeout.
   as a standard "no listed author" web citation (site name in place of an
   author, since scraped pages rarely expose one) — one click to copy, and
   included in the PDF export
+- **Additional quality checks** (verified directly, not just in the UI):
+  - Missing quotation marks on verbatim-matched sentences (an unattributed
+    direct quote)
+  - Self-plagiarism / recycled content — compares your draft against your
+    own past checks in History, entirely client-side (no API credits)
+  - Formatting anomalies — hidden Unicode characters, mixed quote styles,
+    irregular spacing, mixed citation conventions (classic copy-paste tells)
+  - Manual credit-usage sync (Settings → Usage) to correct the per-browser
+    gauge against Serper's/SerpApi's real dashboard numbers
 
 ⏳ Not yet built: dark mode, batch checking, Supabase-backed *shared* usage
 tracking (see note below).

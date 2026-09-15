@@ -10,6 +10,7 @@ interface TextEditorProps {
   text: string;
   onChange: (text: string) => void;
   sentences?: SentenceMatch[];
+  selfMatchIndices?: Set<number>;
   onSentenceClick?: (sentence: SentenceMatch) => void;
   readOnly?: boolean;
 }
@@ -21,10 +22,14 @@ const HIGHLIGHT_CLASSES: Record<SentenceMatch["classification"], string> = {
   matched: "bg-red-100 rounded px-0.5 cursor-pointer transition-colors hover:bg-red-200",
 };
 
+const SELF_MATCH_CLASS =
+  "bg-purple-100 rounded px-0.5 cursor-pointer transition-colors hover:bg-purple-200";
+
 export default function TextEditor({
   text,
   onChange,
   sentences,
+  selfMatchIndices,
   onSentenceClick,
   readOnly,
 }: TextEditorProps) {
@@ -58,7 +63,7 @@ export default function TextEditor({
     return (
       <div className="flex h-full flex-col">
         <div className="flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 text-slate-900 leading-relaxed whitespace-pre-wrap shadow-sm animate-fade-in">
-          {renderHighlightedText(text, sentences, onSentenceClick)}
+          {renderHighlightedText(text, sentences, selfMatchIndices, onSentenceClick)}
         </div>
         <div className="mt-2 flex gap-4 text-xs text-slate-500">
           <span>{wordCount} words</span>
@@ -108,6 +113,7 @@ export default function TextEditor({
 function renderHighlightedText(
   text: string,
   sentences: SentenceMatch[],
+  selfMatchIndices: Set<number> | undefined,
   onSentenceClick?: (sentence: SentenceMatch) => void
 ) {
   // Walk the original text, wrapping each known sentence in a highlight span
@@ -128,17 +134,23 @@ function renderHighlightedText(
       nodes.push(text.slice(cursor, idx));
     }
 
-    const className = HIGHLIGHT_CLASSES[sentence.classification];
+    const isSelfMatch = selfMatchIndices?.has(sentence.index) ?? false;
+    const className = isSelfMatch ? SELF_MATCH_CLASS : HIGHLIGHT_CLASSES[sentence.classification];
+    const isInteractive = sentence.classification !== "original" || isSelfMatch;
+
+    const titleParts: string[] = [];
+    if (sentence.classification !== "original") {
+      titleParts.push(`${sentence.score}% similar${sentence.sourceUrl ? ` — ${sentence.sourceUrl}` : ""}`);
+    }
+    if (sentence.missingQuotes) titleParts.push("Missing quotation marks");
+    if (isSelfMatch) titleParts.push("Matches your own past check");
+
     nodes.push(
       <span
         key={sentence.index}
         className={className}
-        title={
-          sentence.classification !== "original"
-            ? `${sentence.score}% similar${sentence.sourceUrl ? ` — ${sentence.sourceUrl}` : ""}`
-            : undefined
-        }
-        onClick={() => sentence.classification !== "original" && onSentenceClick?.(sentence)}
+        title={titleParts.length > 0 ? titleParts.join(" · ") : undefined}
+        onClick={() => isInteractive && onSentenceClick?.(sentence)}
       >
         {sentence.original}
       </span>

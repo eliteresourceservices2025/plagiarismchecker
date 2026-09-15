@@ -3,6 +3,7 @@
 import { FileSearch } from "lucide-react";
 import ScoreGauge from "./ScoreGauge";
 import SourceList from "./SourceList";
+import QualityChecks from "./QualityChecks";
 import { CITATION_STYLES, type CitationStyle } from "@/lib/citations";
 import type { CheckResult } from "@/lib/types";
 
@@ -63,6 +64,8 @@ export default function ResultsPanel({ result, citationStyle, onCitationStyleCha
         </div>
         <SourceList sources={result.sources} citationStyle={citationStyle} />
       </div>
+
+      <QualityChecks result={result} />
 
       <div className="flex flex-col gap-1 px-1 text-xs text-slate-400">
         <span>

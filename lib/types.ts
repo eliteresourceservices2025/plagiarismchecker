@@ -45,6 +45,24 @@ export interface SentenceMatch {
   score: number; // 0-100
   sourceUrl?: string;
   sourceTitle?: string;
+  /** True when a verbatim-matched sentence isn't wrapped in quotation marks
+   * in the submitted draft — a direct quote missing its quote marks. */
+  missingQuotes?: boolean;
+}
+
+export interface FormattingWarning {
+  type: string;
+  message: string;
+}
+
+export interface SelfMatch {
+  index: number;
+  original: string;
+  wordCount: number;
+  score: number; // 0-100
+  matchedCheckId: string;
+  matchedCheckDate: string;
+  matchedPreview: string;
 }
 
 export interface SourceBreakdown {
@@ -77,6 +95,11 @@ export interface CheckResult {
     serpapi: boolean;
   };
   warnings: string[];
+  formattingWarnings: FormattingWarning[];
+  /** Populated client-side (compared against LocalStorage check history) —
+   * always empty in the server's own response, since the server has no
+   * access to it. See hooks/usePlagiarismCheck.ts. */
+  selfMatches: SelfMatch[];
 }
 
 export interface CheckRequestBody {
@@ -161,6 +184,7 @@ export interface HistoryEntry {
   id: string;
   createdAt: string;
   preview: string; // first ~120 chars of the checked text
+  text: string; // full checked text, kept for self-plagiarism comparison
   originalityScore: number;
   totalWords: number;
   sourceCount: number;

@@ -134,6 +134,47 @@ export function generatePdfReport(result: CheckResult, citationStyle: CitationSt
     y += 4;
   }
 
+  // --- Additional checks: missing quotes, self-plagiarism, formatting ---
+  const missingQuotesCount = result.sentences.filter((s) => s.missingQuotes).length;
+  const selfMatchByCheck = groupSelfMatches(result.selfMatches);
+  if (missingQuotesCount > 0 || selfMatchByCheck.length > 0 || result.formattingWarnings.length > 0) {
+    ensureSpace(20);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(15, 23, 42);
+    doc.text("Additional Checks", MARGIN, y);
+    y += 18;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+
+    const items: string[] = [];
+    if (missingQuotesCount > 0) {
+      items.push(
+        `${missingQuotesCount} verbatim match${missingQuotesCount === 1 ? "" : "es"} not wrapped in quotation marks (unattributed direct quotes).`
+      );
+    }
+    for (const s of selfMatchByCheck) {
+      items.push(
+        `${s.count} sentence${s.count === 1 ? "" : "s"} match your own check from ${formatShortDate(s.date)}.`
+      );
+    }
+    for (const w of result.formattingWarnings) {
+      items.push(w.message);
+    }
+
+    doc.setTextColor(51, 65, 85);
+    for (const item of items) {
+      const wrapped = doc.splitTextToSize(`•  ${item}`, contentWidth);
+      for (const line of wrapped) {
+        ensureSpace(13);
+        doc.text(line, MARGIN, y);
+        y += 13;
+      }
+    }
+    y += 8;
+  }
+
   ensureSpace(20);
   doc.setDrawColor(226, 232, 240);
   doc.line(MARGIN, y, pageWidth - MARGIN, y);
@@ -150,10 +191,14 @@ export function generatePdfReport(result: CheckResult, citationStyle: CitationSt
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9.5);
   const lineHeight = 13;
+  const selfMatchIndices = new Set(result.selfMatches.map((m) => m.index));
   for (const sentence of result.sentences) {
-    const [cr, cg, cb] = classificationColor(sentence.classification);
+    const [cr, cg, cb] = selfMatchIndices.has(sentence.index)
+      ? [147, 51, 234] // purple — self-match takes visual priority
+      : classificationColor(sentence.classification);
     doc.setTextColor(cr, cg, cb);
-    const wrapped = doc.splitTextToSize(sentence.original, contentWidth);
+    const suffix = sentence.missingQuotes ? "  [missing quotes]" : "";
+    const wrapped = doc.splitTextToSize(sentence.original + suffix, contentWidth);
     for (const line of wrapped) {
       ensureSpace(lineHeight);
       doc.text(line, MARGIN, y);
@@ -196,4 +241,27 @@ function classificationColor(
 
 function truncate(s: string, max: number): string {
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+}
+
+function groupSelfMatches(
+  selfMatches: CheckResult["selfMatches"]
+): { checkId: string; date: string; count: number }[] {
+  const byCheck = new Map<string, { checkId: string; date: string; count: number }>();
+  for (const m of selfMatches) {
+    const existing = byCheck.get(m.matchedCheckId);
+    if (existing) {
+      existing.count++;
+    } else {
+      byCheck.set(m.matchedCheckId, { checkId: m.matchedCheckId, date: m.matchedCheckDate, count: 1 });
+    }
+  }
+  return Array.from(byCheck.values());
+}
+
+function formatShortDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  } catch {
+    return iso;
+  }
 }

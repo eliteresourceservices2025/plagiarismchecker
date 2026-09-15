@@ -6,6 +6,8 @@ import { resolveKeys } from "@/lib/serverKeys";
 import { fetchAllSources } from "@/lib/fetcher";
 import { findBestMatch, classify } from "@/lib/comparator";
 import { computeScore } from "@/lib/scorer";
+import { checkFormatting } from "@/lib/formattingCheck";
+import { isQuoted } from "@/lib/textQuality";
 import type { CheckRequestBody, CheckResult, SearchProviderResult, SentenceMatch } from "@/lib/types";
 
 // Kept generous for the legacy single-shot path (small texts / direct API
@@ -127,8 +129,13 @@ export async function POST(req: NextRequest) {
       score: Math.round(best.score * 10) / 10,
       sourceUrl: classification === "original" ? undefined : best.sourceUrl,
       sourceTitle: classification === "original" ? undefined : best.sourceTitle,
+      // A verbatim match that isn't punctuated as a direct quote in the
+      // draft — flags text that reads as an unattributed direct quote.
+      missingQuotes: classification === "matched" ? !isQuoted(sentence.original) : undefined,
     };
   });
+
+  const formattingWarnings = checkFormatting(text);
 
   // Step 6: originality score + per-source breakdown.
   const scoreSummary = computeScore(sentenceMatches, sourceTitles);
@@ -149,6 +156,8 @@ export async function POST(req: NextRequest) {
     freshResults: freshResultsThisCall,
     exhausted: exhaustedThisCall,
     warnings,
+    formattingWarnings,
+    selfMatches: [], // populated client-side against LocalStorage history — see usePlagiarismCheck.ts
   };
 
   return NextResponse.json(result);

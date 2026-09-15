@@ -4,8 +4,10 @@ import { useCallback, useState } from "react";
 import { tokenizeSentences } from "@/lib/tokenizer";
 import { selectSearchQueries } from "@/lib/sampler";
 import { getCached, normalizeQueryKey, purgeExpired, setCached } from "@/lib/resultCache";
+import { findSelfMatches } from "@/lib/selfPlagiarism";
 import type {
   CheckResult,
+  HistoryEntry,
   ResultCache,
   SearchBatchResponse,
   SearchProviderResult,
@@ -21,6 +23,7 @@ export type CheckStage =
   | "error";
 
 const CACHE_STORAGE_KEY = "plagcheck_result_cache";
+const HISTORY_STORAGE_KEY = "plagcheck_history";
 
 // Queries are sent to /api/search in small batches (not all 20 at once) so
 // each request stays comfortably under a serverless function's execution
@@ -54,6 +57,15 @@ function writeCache(cache: ResultCache) {
     window.localStorage.setItem(CACHE_STORAGE_KEY, JSON.stringify(cache));
   } catch {
     // storage full/unavailable — caching just won't persist this session
+  }
+}
+
+function readHistory(): HistoryEntry[] {
+  try {
+    const raw = window.localStorage.getItem(HISTORY_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as HistoryEntry[]) : [];
+  } catch {
+    return [];
   }
 }
 
@@ -180,6 +192,11 @@ export function usePlagiarismCheck() {
 
       const serverResult = data as CheckResult;
 
+      // Self-plagiarism check: compare against past checks in LocalStorage
+      // history. Purely local (no network/credits), so it runs here rather
+      // than server-side, which has no access to it.
+      const selfMatches = findSelfMatches(sentences, readHistory(), text);
+
       // The server's queriesUsed/cacheHits/exhausted are 0/empty for the
       // pre-gathered path — overlay the real totals accumulated above.
       const finalResult: CheckResult = {
@@ -188,6 +205,7 @@ export function usePlagiarismCheck() {
         cacheHits,
         exhausted,
         warnings: [...searchErrors, ...serverResult.warnings],
+        selfMatches,
       };
       if (exhausted.serper && exhausted.serpapi) {
         finalResult.warnings.push("All configured search API credits appear to be depleted.");
