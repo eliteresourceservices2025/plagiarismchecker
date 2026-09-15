@@ -32,7 +32,7 @@ export default function Home() {
   const [excludeUrlsRaw, setExcludeUrlsRaw] = useLocalStorage("plagcheck_exclude_urls", "");
   const [history, setHistory] = useLocalStorage<HistoryEntry[]>("plagcheck_history", []);
   const [citationStyle, setCitationStyle] = useLocalStorage<CitationStyle>("plagcheck_citation_style", "apa");
-  const [engine, setEngine] = useLocalStorage<PlagiarismEngine>("plagcheck_engine", "web");
+  const [engine, setEngine] = useLocalStorage<PlagiarismEngine>("plagcheck_engine", "winston");
   const [detectAI, setDetectAI] = useLocalStorage("plagcheck_detect_ai", false);
 
   const { stage, result, winstonResult, aiDetection, error, runCheck, reset, searchProgress } =
@@ -177,7 +177,7 @@ export default function Home() {
         <div className="flex flex-col gap-3 border-t border-slate-200 pt-4">
           <ProgressBar stage={stage} searchProgress={searchProgress} />
           {!isChecking && !result && !winstonResult && (
-            <PreCheckEstimate text={text} summary={credits.summary} />
+            <PreCheckEstimate text={text} summary={credits.summary} engine={effectiveEngine} />
           )}
           <div className="flex flex-wrap justify-center gap-3">
             {(result || winstonResult) && (

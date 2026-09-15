@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import toast from "react-hot-toast";
 import { tokenizeSentences } from "@/lib/tokenizer";
 import { selectSearchQueries } from "@/lib/sampler";
-import { getCached, normalizeQueryKey, purgeExpired, setCached } from "@/lib/resultCache";
+import { getCached, purgeExpired, setCached } from "@/lib/resultCache";
 import { findSelfMatches } from "@/lib/selfPlagiarism";
 import { recordLocalWinstonUsage } from "@/lib/localWinstonCredits";
 import type {
@@ -86,6 +87,10 @@ function chunk<T>(items: T[], size: number): T[][] {
   return chunks;
 }
 
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : "Something went wrong";
+}
+
 /**
  * Orchestrates a plagiarism check across several small requests instead of
  * one long one:
@@ -112,9 +117,12 @@ export function usePlagiarismCheck() {
       setSearchProgress(null);
       setStage("analyzing");
 
-      // Best-effort, runs alongside whichever engine is doing the plagiarism
-      // check — a failure here just means no AI-detection card, never fails
-      // the overall check.
+      const runWeb = engine === "web" || engine === "both";
+      const runWinston = engine === "winston" || engine === "both";
+
+      // Best-effort, runs alongside whichever plagiarism engine(s) are
+      // running — a failure here just means no AI-detection card, never
+      // fails the overall check.
       const aiDetectionPromise = detectAI
         ? fetch("/api/ai-detect", {
             method: "POST",
@@ -133,155 +141,177 @@ export function usePlagiarismCheck() {
             })
         : Promise.resolve();
 
-      if (engine === "winston") {
-        try {
-          setStage("comparing");
-          const res = await fetch("/api/winston-plagiarism", {
+      // Fired immediately (not awaited yet) so it runs concurrently with the
+      // web-search pipeline below when both engines are selected — Winston
+      // does its own server-side search-and-match, so there's no dependency
+      // between the two.
+      const winstonPromise: Promise<WinstonPlagiarismResult> | null = runWinston
+        ? fetch("/api/winston-plagiarism", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ text, excludeUrls }),
+          }).then(async (res) => {
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+            const winstonPlagiarismResult = data as WinstonPlagiarismResult;
+            recordLocalWinstonUsage(winstonPlagiarismResult.creditsUsed, winstonPlagiarismResult.creditsRemaining);
+            return winstonPlagiarismResult;
+          })
+        : null;
+
+      let webResult: CheckResult | null = null;
+      let webError: unknown = null;
+
+      if (runWeb) {
+        try {
+          // --- Sample + check cache ---
+          const sentences = tokenizeSentences(text);
+          const queries = selectSearchQueries(sentences);
+
+          const { cache: liveCache } = purgeExpired(readCache());
+          let workingCache = liveCache;
+
+          const combinedResults: SearchProviderResult[] = [];
+          const missQueries: SearchQuery[] = [];
+
+          for (const q of queries) {
+            const hit = getCached(workingCache, q.phrase);
+            if (hit) {
+              combinedResults.push({ provider: "cache", query: q.phrase, results: hit });
+            } else {
+              missQueries.push(q);
+            }
+          }
+
+          // --- Search cache misses in small batches ---
+          const totals = { serper: 0, serpapi: 0 };
+          let cacheHits = queries.length - missQueries.length;
+          const exhausted = { serper: false, serpapi: false };
+          const searchErrors: string[] = [];
+
+          if (missQueries.length > 0) {
+            setStage("searching");
+            const batches = chunk(missQueries, BATCH_SIZE);
+            setSearchProgress({ completedBatches: 0, totalBatches: batches.length });
+
+            for (const batch of batches) {
+              const res = await fetch("/api/search", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ queries: batch, serperKey, serpapiKey }),
+              });
+
+              const data = await res.json();
+              if (!res.ok) {
+                throw new Error(data.error || `Search request failed (${res.status})`);
+              }
+
+              const batchResult = data as SearchBatchResponse;
+              combinedResults.push(...batchResult.results);
+              totals.serper += batchResult.queriesUsed.serper;
+              totals.serpapi += batchResult.queriesUsed.serpapi;
+              cacheHits += batchResult.cacheHits;
+              searchErrors.push(...batchResult.errors);
+              exhausted.serper = exhausted.serper || batchResult.exhausted.serper;
+              exhausted.serpapi = exhausted.serpapi || batchResult.exhausted.serpapi;
+
+              for (const fresh of batchResult.freshResults) {
+                workingCache = setCached(workingCache, fresh.phrase, fresh.results);
+              }
+
+              setSearchProgress((prev) =>
+                prev ? { ...prev, completedBatches: prev.completedBatches + 1 } : prev
+              );
+
+              // If both providers are exhausted, no point sending further batches.
+              if (exhausted.serper && exhausted.serpapi) break;
+            }
+
+            writeCache(workingCache);
+
+            // If every single live search attempt failed (bad/expired key,
+            // provider outage, etc.), don't silently hand back a "100%
+            // original" result — that would misrepresent a check that never
+            // actually ran. Fail loudly instead.
+            const liveSuccesses = totals.serper + totals.serpapi;
+            if (liveSuccesses === 0) {
+              const detail = searchErrors[0] ?? "Search requests failed.";
+              throw new Error(
+                `Couldn't search the web for this check: ${detail} Check the API key in Settings (or ask an admin to check the shared key).`
+              );
+            }
+          }
+
+          // --- Rank + fetch + compare (server does this part) ---
+          setStage("comparing");
+          const res = await fetch("/api/check", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text, excludeUrls, searchResults: combinedResults }),
           });
+
           const data = await res.json();
           if (!res.ok) {
             throw new Error(data.error || `Request failed (${res.status})`);
           }
-          const winstonPlagiarismResult = data as WinstonPlagiarismResult;
-          recordLocalWinstonUsage(winstonPlagiarismResult.creditsUsed, winstonPlagiarismResult.creditsRemaining);
-          await aiDetectionPromise;
-          setWinstonResult(winstonPlagiarismResult);
-          setStage("done");
+
+          const serverResult = data as CheckResult;
+
+          // Self-plagiarism check: compare against past checks in LocalStorage
+          // history. Purely local (no network/credits), so it runs here rather
+          // than server-side, which has no access to it.
+          const selfMatches = findSelfMatches(sentences, readHistory(), text);
+
+          // The server's queriesUsed/cacheHits/exhausted are 0/empty for the
+          // pre-gathered path — overlay the real totals accumulated above.
+          const finalResult: CheckResult = {
+            ...serverResult,
+            queriesUsed: totals,
+            cacheHits,
+            exhausted,
+            warnings: [...searchErrors, ...serverResult.warnings],
+            selfMatches,
+          };
+          if (exhausted.serper && exhausted.serpapi) {
+            finalResult.warnings.push("All configured search API credits appear to be depleted.");
+          }
+
+          webResult = finalResult;
         } catch (err) {
-          await aiDetectionPromise;
-          setError(err instanceof Error ? err.message : "Something went wrong");
-          setStage("error");
-        } finally {
-          setSearchProgress(null);
+          webError = err;
         }
-        return;
+      } else {
+        // Winston-only: no sub-stages of its own, just show "comparing"
+        // while its single request is in flight.
+        setStage("comparing");
       }
 
-      try {
-        // --- Sample + check cache ---
-      const sentences = tokenizeSentences(text);
-      const queries = selectSearchQueries(sentences);
-
-      const { cache: liveCache } = purgeExpired(readCache());
-      let workingCache = liveCache;
-
-      const combinedResults: SearchProviderResult[] = [];
-      const missQueries: SearchQuery[] = [];
-
-      for (const q of queries) {
-        const hit = getCached(workingCache, q.phrase);
-        if (hit) {
-          combinedResults.push({ provider: "cache", query: q.phrase, results: hit });
-        } else {
-          missQueries.push(q);
+      let winstonResultLocal: WinstonPlagiarismResult | null = null;
+      let winstonError: unknown = null;
+      if (winstonPromise) {
+        try {
+          winstonResultLocal = await winstonPromise;
+        } catch (err) {
+          winstonError = err;
         }
-      }
-
-      // --- Search cache misses in small batches ---
-      const totals = { serper: 0, serpapi: 0 };
-      let cacheHits = queries.length - missQueries.length;
-      const exhausted = { serper: false, serpapi: false };
-      const searchErrors: string[] = [];
-
-      if (missQueries.length > 0) {
-        setStage("searching");
-        const batches = chunk(missQueries, BATCH_SIZE);
-        setSearchProgress({ completedBatches: 0, totalBatches: batches.length });
-
-        for (const batch of batches) {
-          const res = await fetch("/api/search", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ queries: batch, serperKey, serpapiKey }),
-          });
-
-          const data = await res.json();
-          if (!res.ok) {
-            throw new Error(data.error || `Search request failed (${res.status})`);
-          }
-
-          const batchResult = data as SearchBatchResponse;
-          combinedResults.push(...batchResult.results);
-          totals.serper += batchResult.queriesUsed.serper;
-          totals.serpapi += batchResult.queriesUsed.serpapi;
-          cacheHits += batchResult.cacheHits;
-          searchErrors.push(...batchResult.errors);
-          exhausted.serper = exhausted.serper || batchResult.exhausted.serper;
-          exhausted.serpapi = exhausted.serpapi || batchResult.exhausted.serpapi;
-
-          for (const fresh of batchResult.freshResults) {
-            workingCache = setCached(workingCache, fresh.phrase, fresh.results);
-          }
-
-          setSearchProgress((prev) =>
-            prev ? { ...prev, completedBatches: prev.completedBatches + 1 } : prev
-          );
-
-          // If both providers are exhausted, no point sending further batches.
-          if (exhausted.serper && exhausted.serpapi) break;
-        }
-
-        writeCache(workingCache);
-
-        // If every single live search attempt failed (bad/expired key,
-        // provider outage, etc.), don't silently hand back a "100%
-        // original" result — that would misrepresent a check that never
-        // actually ran. Fail loudly instead.
-        const liveSuccesses = totals.serper + totals.serpapi;
-        if (liveSuccesses === 0) {
-          const detail = searchErrors[0] ?? "Search requests failed.";
-          throw new Error(
-            `Couldn't search the web for this check: ${detail} Check the API key in Settings (or ask an admin to check the shared key).`
-          );
-        }
-      }
-
-      // --- Rank + fetch + compare (server does this part) ---
-      setStage("comparing");
-      const res = await fetch("/api/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, excludeUrls, searchResults: combinedResults }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || `Request failed (${res.status})`);
-      }
-
-      const serverResult = data as CheckResult;
-
-      // Self-plagiarism check: compare against past checks in LocalStorage
-      // history. Purely local (no network/credits), so it runs here rather
-      // than server-side, which has no access to it.
-      const selfMatches = findSelfMatches(sentences, readHistory(), text);
-
-      // The server's queriesUsed/cacheHits/exhausted are 0/empty for the
-      // pre-gathered path — overlay the real totals accumulated above.
-      const finalResult: CheckResult = {
-        ...serverResult,
-        queriesUsed: totals,
-        cacheHits,
-        exhausted,
-        warnings: [...searchErrors, ...serverResult.warnings],
-        selfMatches,
-      };
-      if (exhausted.serper && exhausted.serpapi) {
-        finalResult.warnings.push("All configured search API credits appear to be depleted.");
       }
 
       await aiDetectionPromise;
-      setResult(finalResult);
-      setStage("done");
-      } catch (err) {
-        await aiDetectionPromise;
-        setError(err instanceof Error ? err.message : "Something went wrong");
+      setSearchProgress(null);
+
+      if (webResult) setResult(webResult);
+      if (winstonResultLocal) setWinstonResult(winstonResultLocal);
+
+      if (webResult || winstonResultLocal) {
+        // At least one engine succeeded — show what we have. Quietly flag
+        // the one that didn't rather than hiding the successful result
+        // behind a hard error.
+        if (webError) toast.error(`Web search check failed: ${errorMessage(webError)}`);
+        if (winstonError) toast.error(`Winston AI check failed: ${errorMessage(winstonError)}`);
+        setStage("done");
+      } else {
+        setError(errorMessage(webError ?? winstonError));
         setStage("error");
-      } finally {
-        setSearchProgress(null);
       }
     },
     []

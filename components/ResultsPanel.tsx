@@ -37,26 +37,54 @@ export default function ResultsPanel({
     );
   }
 
-  // The Winston engine produces its own result shape (it does its own
-  // web-search-and-match server-side) — shown as a separate card rather
-  // than forced into the Serper/SerpApi sentence-by-sentence breakdown
-  // below, which it wasn't computed to match.
-  if (winstonResult) {
-    return (
-      <div className="flex flex-col gap-6">
-        {aiDetection && <AIDetectionCard result={aiDetection} />}
-        <WinstonResultCard result={winstonResult} />
-      </div>
-    );
-  }
-
-  if (!result) return null;
-  const { breakdown } = result;
+  // Each engine has its own result shape (Winston does its own
+  // web-search-and-match server-side, so its score/sources aren't computed
+  // the same way as this app's own comparator) — shown as separate cards,
+  // both at once when both engines ran, rather than forced together.
+  const showBoth = Boolean(result && winstonResult);
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
       {aiDetection && <AIDetectionCard result={aiDetection} />}
 
+      {winstonResult && (
+        <div className="flex flex-col gap-2">
+          {showBoth && (
+            <h3 className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Winston AI
+            </h3>
+          )}
+          <WinstonResultCard result={winstonResult} />
+        </div>
+      )}
+
+      {result && (
+        <div className="flex flex-col gap-2">
+          {showBoth && (
+            <h3 className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Web Search
+            </h3>
+          )}
+          <WebResult result={result} citationStyle={citationStyle} onCitationStyleChange={onCitationStyleChange} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WebResult({
+  result,
+  citationStyle,
+  onCitationStyleChange,
+}: {
+  result: CheckResult;
+  citationStyle: CitationStyle;
+  onCitationStyleChange: (style: CitationStyle) => void;
+}) {
+  const { breakdown } = result;
+
+  return (
+    <div className="flex flex-col gap-6">
       <div className="flex flex-col items-center gap-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <ScoreGauge score={result.originalityScore} />
         <div className="flex w-full flex-col gap-2 text-sm">

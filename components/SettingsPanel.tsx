@@ -167,7 +167,8 @@ export default function SettingsPanel({
                   <p className="text-xs text-slate-400">
                     Web Search runs this app&apos;s own Serper/SerpApi pipeline (search, fetch,
                     compare). Winston AI sends your text straight to gowinston.ai, which does its
-                    own web-match scan and returns a score and sources directly.
+                    own web-match scan and returns a score and sources directly. Both runs them
+                    together and shows both results — uses credits from both providers.
                   </p>
                   <div className="flex gap-2">
                     <EngineOption
@@ -181,6 +182,12 @@ export default function SettingsPanel({
                       label="Winston AI"
                       sub="gowinston.ai"
                       onClick={() => onEngineChange("winston")}
+                    />
+                    <EngineOption
+                      active={engine === "both"}
+                      label="Both"
+                      sub="Uses both credit pools"
+                      onClick={() => onEngineChange("both")}
                     />
                   </div>
 

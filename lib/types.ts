@@ -241,7 +241,7 @@ export interface WinstonAIDetectionResult {
   creditsRemaining: number;
 }
 
-export type PlagiarismEngine = "web" | "winston";
+export type PlagiarismEngine = "web" | "winston" | "both";
 
 // --- Result cache (lib/resultCache.ts) ---
 
