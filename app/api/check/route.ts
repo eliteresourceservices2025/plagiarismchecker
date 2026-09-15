@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     cachedResults,
     searchResults: preGatheredResults,
   } = body;
-  const { serperKey, serpapiKey } = resolveKeys(body.serperKey, body.serpapiKey);
+  const { serperKeys, serpapiKey } = resolveKeys(body.serperKey, body.serpapiKey);
 
   if (!text || typeof text !== "string" || !text.trim()) {
     return NextResponse.json({ error: "No text provided" }, { status: 400 });
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
   const usingPreGatheredResults = Array.isArray(preGatheredResults);
 
-  if (!usingPreGatheredResults && !serperKey && !serpapiKey) {
+  if (!usingPreGatheredResults && serperKeys.length === 0 && !serpapiKey) {
     return NextResponse.json(
       {
         error:
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     const queries =
       clientQueries && clientQueries.length > 0 ? clientQueries : selectSearchQueries(sentences);
     const searchOutcome = await runSearchesWithCache(queries, cachedResults ?? {}, {
-      serperKey,
+      serperKeys,
       serpapiKey,
     });
     warnings.push(...searchOutcome.errors);

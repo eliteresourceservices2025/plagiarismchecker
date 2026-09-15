@@ -2,7 +2,9 @@ import { normalizeQueryKey } from "./resultCache";
 import type { SearchProviderResult, SearchQuery, SearchResultItem } from "./types";
 
 export interface SearcherKeys {
-  serperKey?: string;
+  /** Ordered — tried in sequence, each key's own exhaustion falling
+   * through to the next, before ever falling back to SerpApi. */
+  serperKeys?: string[];
   serpapiKey?: string;
 }
 
@@ -66,32 +68,37 @@ export async function runSearches(
   const results: SearchProviderResult[] = [];
   const errors: string[] = [];
   const queriesUsed = { serper: 0, serpapi: 0 };
+  const serperKeys = keys.serperKeys ?? [];
   // Shared across concurrent attempts — a small, harmless race (an extra
   // wasted call or two right as a key exhausts) in exchange for real
-  // parallelism within a batch.
-  const exhausted = { serper: false, serpapi: false };
+  // parallelism within a batch. One exhaustion flag per Serper key, so a
+  // second/backup key keeps working after the first is used up.
+  const serperKeyExhausted = new Array(serperKeys.length).fill(false);
+  const serpapiExhausted = { value: false };
 
   await Promise.all(
     queries.map(async (q) => {
       const searchPhrase = `"${q.phrase}"`;
       let handled = false;
 
-      if (keys.serperKey && !exhausted.serper) {
+      for (let i = 0; i < serperKeys.length && !handled; i++) {
+        if (serperKeyExhausted[i]) continue;
         try {
-          const items = await searchSerper(searchPhrase, keys.serperKey);
+          const items = await searchSerper(searchPhrase, serperKeys[i]);
           queriesUsed.serper++;
           results.push({ provider: "serper", query: q.phrase, results: items });
           handled = true;
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           if (isCreditError(message)) {
-            exhausted.serper = true;
+            serperKeyExhausted[i] = true;
           }
-          errors.push(`Serper query failed for "${q.phrase}": ${message}`);
+          const keyLabel = serperKeys.length > 1 ? ` (key ${i + 1}/${serperKeys.length})` : "";
+          errors.push(`Serper${keyLabel} query failed for "${q.phrase}": ${message}`);
         }
       }
 
-      if (!handled && keys.serpapiKey && !exhausted.serpapi) {
+      if (!handled && keys.serpapiKey && !serpapiExhausted.value) {
         try {
           const items = await searchSerpApi(searchPhrase, keys.serpapiKey);
           queriesUsed.serpapi++;
@@ -100,7 +107,7 @@ export async function runSearches(
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           if (isCreditError(message)) {
-            exhausted.serpapi = true;
+            serpapiExhausted.value = true;
           }
           errors.push(`SerpApi query failed for "${q.phrase}": ${message}`);
         }
@@ -111,6 +118,11 @@ export async function runSearches(
       }
     })
   );
+
+  const exhausted = {
+    serper: serperKeys.length > 0 && serperKeyExhausted.every(Boolean),
+    serpapi: serpapiExhausted.value,
+  };
 
   return { results, queriesUsed, errors, exhausted };
 }

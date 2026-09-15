@@ -17,13 +17,13 @@ export async function POST(req: NextRequest) {
   }
 
   const { queries, cachedResults } = body;
-  const { serperKey, serpapiKey } = resolveKeys(body.serperKey, body.serpapiKey);
+  const { serperKeys, serpapiKey } = resolveKeys(body.serperKey, body.serpapiKey);
 
   if (!queries || queries.length === 0) {
     return NextResponse.json({ error: "No queries provided" }, { status: 400 });
   }
 
-  if (!serperKey && !serpapiKey) {
+  if (serperKeys.length === 0 && !serpapiKey) {
     return NextResponse.json(
       {
         error:
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   }
 
   const outcome = await runSearchesWithCache(queries, cachedResults ?? {}, {
-    serperKey,
+    serperKeys,
     serpapiKey,
   });
 

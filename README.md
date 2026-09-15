@@ -61,9 +61,13 @@ to sign up individually:
   (locally in `.env.local`, or in Vercel's Project Settings → Environment
   Variables). Once set, *everyone* using the app can run checks immediately
   — no Settings configuration needed.
+- Optionally set `SERPER_API_KEY_2` for a second Serper account — it's
+  tried automatically once the first key's free credits run out, before
+  the app ever falls back to SerpApi. Stack as many of these as you have
+  spare accounts for; leave it blank if you don't need it.
 - Anyone can still add their **own personal key** in Settings → API Keys.
-  A personal key always takes priority over the shared one, so if the
-  shared pool runs low, individuals can bring their own capacity.
+  A personal key always takes priority over the shared ones, so if the
+  whole shared pool runs low, individuals can bring their own capacity.
 
 **Known limitation:** the credit gauge / usage history tracked in Settings
 is per-browser (LocalStorage), not a true shared counter. With one primary
