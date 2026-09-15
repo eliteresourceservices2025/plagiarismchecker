@@ -11,6 +11,7 @@ import {
   resetMonthly as resetMonthlyState,
   rolloverIfNeeded,
   summarize,
+  syncUsage as syncUsageInState,
 } from "@/lib/creditTracker";
 import type { CreditState } from "@/lib/types";
 
@@ -73,8 +74,13 @@ export function useCreditMonitor() {
 
   const resetMonthly = useCallback(() => setState((prev) => resetMonthlyState(prev)), [setState]);
   const resetAll = useCallback(() => setState(() => resetAllState()), [setState]);
+  const syncUsage = useCallback(
+    (usage: { serperUsed?: number; serpapiUsedThisMonth?: number }) =>
+      setState((prev) => syncUsageInState(prev, usage)),
+    [setState]
+  );
 
-  return { state: rolled, summary, recordUsage, resetMonthly, resetAll, hydrated };
+  return { state: rolled, summary, recordUsage, resetMonthly, resetAll, syncUsage, hydrated };
 }
 
 function fireToast(message: string, type: "warning" | "urgent" | "info") {

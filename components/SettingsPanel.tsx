@@ -17,6 +17,7 @@ interface SettingsPanelProps {
   creditSummary: CreditSummary;
   onResetMonthly: () => void;
   onResetAllCredits: () => void;
+  onSyncUsage: (usage: { serperUsed?: number; serpapiUsedThisMonth?: number }) => void;
 }
 
 type Tab = "keys" | "usage" | "advanced";
@@ -33,6 +34,7 @@ export default function SettingsPanel({
   creditSummary,
   onResetMonthly,
   onResetAllCredits,
+  onSyncUsage,
 }: SettingsPanelProps) {
   const [tab, setTab] = useState<Tab>("keys");
   const [localSerper, setLocalSerper] = useState(serperKey);
@@ -111,7 +113,7 @@ export default function SettingsPanel({
           </TabButton>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
           {tab === "keys" && (
             <div className="flex flex-col gap-4">
               <div className="flex items-start gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
@@ -145,6 +147,7 @@ export default function SettingsPanel({
               summary={creditSummary}
               onResetMonthly={onResetMonthly}
               onResetAll={onResetAllCredits}
+              onSyncUsage={onSyncUsage}
             />
           )}
 

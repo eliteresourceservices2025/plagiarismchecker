@@ -71,6 +71,39 @@ export function recordUsage(
   return { ...next, lastUpdated: now.toISOString() };
 }
 
+/**
+ * Directly overwrites the used-credit counts (unlike `recordUsage`, which
+ * only increments). Since this is a per-browser LocalStorage estimate —
+ * not a real read of the Serper/SerpApi account, which shared server-side
+ * keys make especially easy to drift from — this lets someone periodically
+ * correct it to match what the provider's own dashboard actually shows.
+ */
+export function syncUsage(
+  state: CreditState,
+  usage: { serperUsed?: number; serpapiUsedThisMonth?: number }
+): CreditState {
+  const now = new Date();
+  let next = rolloverIfNeeded(state);
+
+  if (usage.serperUsed !== undefined) {
+    const clamped = Math.max(0, Math.round(usage.serperUsed));
+    const firstUsedAt = next.serper.firstUsedAt ?? now.toISOString();
+    const expiresAt =
+      next.serper.expiresAt ?? new Date(now.getTime() + SIX_MONTHS_MS).toISOString();
+    next = {
+      ...next,
+      serper: { ...next.serper, used: clamped, firstUsedAt, expiresAt },
+    };
+  }
+
+  if (usage.serpapiUsedThisMonth !== undefined) {
+    const clamped = Math.max(0, Math.round(usage.serpapiUsedThisMonth));
+    next = { ...next, serpapi: { ...next.serpapi, usedThisMonth: clamped } };
+  }
+
+  return { ...next, lastUpdated: now.toISOString() };
+}
+
 export function resetMonthly(state: CreditState): CreditState {
   const now = new Date();
   return {

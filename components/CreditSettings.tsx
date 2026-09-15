@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Trash2 } from "lucide-react";
+import { RefreshCw, Trash2 } from "lucide-react";
+import toast from "react-hot-toast";
 import { cacheSizeBytes, purgeExpired } from "@/lib/resultCache";
 import type { CreditState, CreditSummary, ResultCache } from "@/lib/types";
 
@@ -13,6 +14,7 @@ interface CreditSettingsProps {
   summary: CreditSummary;
   onResetMonthly: () => void;
   onResetAll: () => void;
+  onSyncUsage: (usage: { serperUsed?: number; serpapiUsedThisMonth?: number }) => void;
 }
 
 export default function CreditSettings({
@@ -20,12 +22,20 @@ export default function CreditSettings({
   summary,
   onResetMonthly,
   onResetAll,
+  onSyncUsage,
 }: CreditSettingsProps) {
   const [cacheMb, setCacheMb] = useState<number | null>(null);
+  const [serperInput, setSerperInput] = useState(String(state.serper.used));
+  const [serpapiInput, setSerpapiInput] = useState(String(state.serpapi.usedThisMonth));
 
   useEffect(() => {
     refreshCacheSize();
   }, []);
+
+  useEffect(() => {
+    setSerperInput(String(state.serper.used));
+    setSerpapiInput(String(state.serpapi.usedThisMonth));
+  }, [state.serper.used, state.serpapi.usedThisMonth]);
 
   function refreshCacheSize() {
     try {
@@ -46,6 +56,19 @@ export default function CreditSettings({
     } catch {
       // ignore
     }
+  }
+
+  function handleSync() {
+    const serperUsed = Number(serperInput);
+    const serpapiUsedThisMonth = Number(serpapiInput);
+
+    if (Number.isNaN(serperUsed) || Number.isNaN(serpapiUsedThisMonth)) {
+      toast.error("Enter valid numbers for both fields.");
+      return;
+    }
+
+    onSyncUsage({ serperUsed, serpapiUsedThisMonth });
+    toast.success("Usage synced");
   }
 
   return (
@@ -80,6 +103,48 @@ export default function CreditSettings({
           </button>
         }
       />
+
+      <div className="flex flex-col gap-2 rounded-lg border border-dashed border-slate-300 p-3">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+          <RefreshCw size={12} />
+          Sync with actual usage
+        </div>
+        <p className="text-xs text-slate-400">
+          This gauge is tracked in this browser only — with a shared team key, real usage
+          can drift from what's shown here. Paste the real numbers from Serper's/SerpApi's
+          own dashboard to correct it.
+        </p>
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <label className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="text-[11px] text-slate-500">Serper used</span>
+              <input
+                type="number"
+                min={0}
+                value={serperInput}
+                onChange={(e) => setSerperInput(e.target.value)}
+                className="w-full min-w-0 rounded-md border border-slate-200 px-2 py-1 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-light"
+              />
+            </label>
+            <label className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="text-[11px] text-slate-500">SerpApi used this month</span>
+              <input
+                type="number"
+                min={0}
+                value={serpapiInput}
+                onChange={(e) => setSerpapiInput(e.target.value)}
+                className="w-full min-w-0 rounded-md border border-slate-200 px-2 py-1 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-light"
+              />
+            </label>
+          </div>
+          <button
+            onClick={handleSync}
+            className="w-full rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white shadow-sm shadow-brand/30 transition hover:bg-brand-hover"
+          >
+            Sync
+          </button>
+        </div>
+      </div>
 
       <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
         <span>

@@ -183,6 +183,7 @@ export default function Home() {
           credits.resetAll();
           toast.success("All usage counters reset");
         }}
+        onSyncUsage={credits.syncUsage}
       />
 
       <HistoryPanel
