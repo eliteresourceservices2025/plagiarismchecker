@@ -1,12 +1,16 @@
 "use client";
 
-import { ScanSearch, Settings } from "lucide-react";
+import { History, ScanSearch, Settings } from "lucide-react";
+import CreditGauge from "./CreditGauge";
+import type { CreditSummary } from "@/lib/types";
 
 interface HeaderProps {
   onSettingsClick: () => void;
+  onHistoryClick: () => void;
+  creditSummary: CreditSummary;
 }
 
-export default function Header({ onSettingsClick }: HeaderProps) {
+export default function Header({ onSettingsClick, onHistoryClick, creditSummary }: HeaderProps) {
   return (
     <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 py-3 backdrop-blur-sm sm:px-6">
       <div className="flex items-center gap-2.5">
@@ -20,13 +24,23 @@ export default function Header({ onSettingsClick }: HeaderProps) {
           </span>
         </div>
       </div>
-      <button
-        onClick={onSettingsClick}
-        className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 active:scale-[0.97]"
-      >
-        <Settings size={16} />
-        <span className="hidden sm:inline">Settings</span>
-      </button>
+      <div className="flex items-center gap-1 sm:gap-2">
+        <CreditGauge summary={creditSummary} onClick={onSettingsClick} />
+        <button
+          onClick={onHistoryClick}
+          className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 active:scale-[0.97]"
+        >
+          <History size={16} />
+          <span className="hidden sm:inline">History</span>
+        </button>
+        <button
+          onClick={onSettingsClick}
+          className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 active:scale-[0.97]"
+        >
+          <Settings size={16} />
+          <span className="hidden sm:inline">Settings</span>
+        </button>
+      </div>
     </header>
   );
 }

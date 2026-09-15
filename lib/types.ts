@@ -23,7 +23,7 @@ export interface SearchResultItem {
 }
 
 export interface SearchProviderResult {
-  provider: "serper" | "serpapi";
+  provider: "serper" | "serpapi" | "cache";
   query: string;
   results: SearchResultItem[];
 }
@@ -70,6 +70,12 @@ export interface CheckResult {
     serper: number;
     serpapi: number;
   };
+  cacheHits: number;
+  freshResults: { phrase: string; results: SearchResultItem[] }[];
+  exhausted: {
+    serper: boolean;
+    serpapi: boolean;
+  };
   warnings: string[];
 }
 
@@ -78,4 +84,63 @@ export interface CheckRequestBody {
   serperKey?: string;
   serpapiKey?: string;
   excludeUrls?: string[];
+  /** Client-precomputed sample queries (from lib/sampler.ts) so the client
+   * can decide which ones are already cached before the server ever sees
+   * them. Falls back to server-side sampling if omitted. */
+  queries?: SearchQuery[];
+  /** Cache hits the client already has for some of `queries`, keyed by
+   * normalized phrase — the server skips live search for these entirely. */
+  cachedResults?: Record<string, SearchResultItem[]>;
+}
+
+// --- Credit tracking (lib/creditTracker.ts) ---
+
+export interface CreditState {
+  serper: {
+    total: number;
+    used: number;
+    firstUsedAt: string | null;
+    expiresAt: string | null;
+  };
+  serpapi: {
+    monthlyLimit: number;
+    usedThisMonth: number;
+    currentMonth: string; // "YYYY-MM"
+    resetsOn: string; // ISO date
+  };
+  lastUpdated: string;
+}
+
+export interface CreditSummary {
+  serperRemaining: number;
+  serperPercentUsed: number;
+  serpapiRemaining: number;
+  serpapiPercentUsed: number;
+  combinedRemaining: number;
+  serperExhausted: boolean;
+  serpapiExhausted: boolean;
+  allExhausted: boolean;
+  daysUntilSerperExpiry: number | null;
+  serpapiResetsOn: string;
+}
+
+// --- Result cache (lib/resultCache.ts) ---
+
+export interface CacheEntry {
+  results: SearchResultItem[];
+  cachedAt: number; // epoch ms
+  ttl: number; // ms
+}
+
+export type ResultCache = Record<string, CacheEntry>;
+
+// --- Check history (lib/history.ts) ---
+
+export interface HistoryEntry {
+  id: string;
+  createdAt: string;
+  preview: string; // first ~120 chars of the checked text
+  originalityScore: number;
+  totalWords: number;
+  sourceCount: number;
 }

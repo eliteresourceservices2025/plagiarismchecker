@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { ScanSearch, SquarePen } from "lucide-react";
 import Header from "@/components/Header";
@@ -8,18 +8,57 @@ import TextEditor from "@/components/TextEditor";
 import ResultsPanel from "@/components/ResultsPanel";
 import ProgressBar from "@/components/ProgressBar";
 import SettingsPanel from "@/components/SettingsPanel";
+import CreditBanner from "@/components/CreditBanner";
+import PreCheckEstimate from "@/components/PreCheckEstimate";
+import DepletedOverlay from "@/components/DepletedOverlay";
+import HistoryPanel from "@/components/HistoryPanel";
+import ExportButton from "@/components/ExportButton";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { usePlagiarismCheck } from "@/hooks/usePlagiarismCheck";
+import { useCreditMonitor } from "@/hooks/useCreditMonitor";
+import { addEntry, removeEntry, toHistoryEntry } from "@/lib/history";
+import type { HistoryEntry } from "@/lib/types";
 
 export default function Home() {
   const [text, setText] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [showDepleted, setShowDepleted] = useState(false);
+
   const [serperKey, setSerperKey] = useLocalStorage("plagcheck_serper_key", "");
   const [serpapiKey, setSerpapiKey] = useLocalStorage("plagcheck_serpapi_key", "");
+  const [excludeUrlsRaw, setExcludeUrlsRaw] = useLocalStorage("plagcheck_exclude_urls", "");
+  const [history, setHistory] = useLocalStorage<HistoryEntry[]>("plagcheck_history", []);
 
   const { stage, result, error, runCheck, reset } = usePlagiarismCheck();
+  const credits = useCreditMonitor();
 
   const isChecking = stage === "analyzing" || stage === "searching" || stage === "comparing";
+  const lastRecordedResult = useRef<string | null>(null);
+
+  // Record credit usage + history exactly once per completed check.
+  useEffect(() => {
+    if (!result || stage !== "done") return;
+    const marker = `${result.totalWords}-${result.originalityScore}-${result.queriesUsed.serper}-${result.queriesUsed.serpapi}`;
+    if (lastRecordedResult.current === marker) return;
+    lastRecordedResult.current = marker;
+
+    credits.recordUsage(result.queriesUsed);
+    setHistory((prev) => addEntry(prev, toHistoryEntry(text, result)));
+
+    if (result.cacheHits > 0) {
+      toast.success(`Saved ${result.cacheHits} credit${result.cacheHits === 1 ? "" : "s"} from cache`, {
+        icon: "💾",
+        duration: 3000,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result, stage]);
+
+  const excludeUrls = excludeUrlsRaw
+    .split("\n")
+    .map((u) => u.trim())
+    .filter(Boolean);
 
   async function handleCheck() {
     if (!text.trim()) {
@@ -31,15 +70,25 @@ export default function Home() {
       setSettingsOpen(true);
       return;
     }
+    if (credits.summary.allExhausted) {
+      setShowDepleted(true);
+      return;
+    }
 
-    await runCheck({ text, serperKey, serpapiKey });
+    await runCheck({ text, serperKey, serpapiKey, excludeUrls });
   }
 
   return (
     <div className="flex h-screen flex-col bg-background">
-      <Header onSettingsClick={() => setSettingsOpen(true)} />
+      <Header
+        onSettingsClick={() => setSettingsOpen(true)}
+        onHistoryClick={() => setHistoryOpen(true)}
+        creditSummary={credits.summary}
+      />
 
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 overflow-hidden p-4 sm:p-6">
+        <CreditBanner summary={credits.summary} />
+
         <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-[1fr_360px] lg:gap-6">
           <div className="flex min-h-0 flex-col">
             <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -75,7 +124,8 @@ export default function Home() {
 
         <div className="flex flex-col gap-3 border-t border-slate-200 pt-4">
           <ProgressBar stage={stage} />
-          <div className="flex justify-center gap-3">
+          {!isChecking && !result && <PreCheckEstimate text={text} summary={credits.summary} />}
+          <div className="flex flex-wrap justify-center gap-3">
             {result && (
               <button
                 onClick={() => reset()}
@@ -91,6 +141,7 @@ export default function Home() {
             >
               {isChecking ? "Checking..." : "Check for Plagiarism"}
             </button>
+            {result && <ExportButton result={result} />}
           </div>
         </div>
       </main>
@@ -105,7 +156,38 @@ export default function Home() {
           setSerpapiKey(spk);
           toast.success("Settings saved");
         }}
+        excludeUrls={excludeUrlsRaw}
+        onSaveExcludeUrls={setExcludeUrlsRaw}
+        creditState={credits.state}
+        creditSummary={credits.summary}
+        onResetMonthly={() => {
+          credits.resetMonthly();
+          toast.success("SerpApi counter reset");
+        }}
+        onResetAllCredits={() => {
+          credits.resetAll();
+          toast.success("All usage counters reset");
+        }}
       />
+
+      <HistoryPanel
+        open={historyOpen}
+        entries={history}
+        onClose={() => setHistoryOpen(false)}
+        onClear={() => setHistory([])}
+        onRemove={(id) => setHistory((prev) => removeEntry(prev, id))}
+      />
+
+      {showDepleted && (
+        <DepletedOverlay
+          summary={credits.summary}
+          onOpenSettings={() => {
+            setShowDepleted(false);
+            setSettingsOpen(true);
+          }}
+          onDismiss={() => setShowDepleted(false)}
+        />
+      )}
     </div>
   );
 }

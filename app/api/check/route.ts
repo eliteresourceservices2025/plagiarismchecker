@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { tokenizeSentences } from "@/lib/tokenizer";
 import { selectSearchQueries } from "@/lib/sampler";
-import { runSearches, rankTopUrls } from "@/lib/searcher";
+import { runSearchesWithCache, rankTopUrls } from "@/lib/searcher";
 import { fetchAllSources } from "@/lib/fetcher";
 import { findBestMatch, classify } from "@/lib/comparator";
 import { computeScore } from "@/lib/scorer";
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { text, serperKey, serpapiKey, excludeUrls } = body;
+  const { text, serperKey, serpapiKey, excludeUrls, queries: clientQueries, cachedResults } = body;
 
   if (!text || typeof text !== "string" || !text.trim()) {
     return NextResponse.json({ error: "No text provided" }, { status: 400 });
@@ -56,11 +56,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Step 2: smart sampling — pick distinctive phrases to search.
-  const queries = selectSearchQueries(sentences);
+  // Step 2: smart sampling — pick distinctive phrases to search. The client
+  // pre-samples using the same shared logic so it can check its own
+  // LocalStorage result cache first; fall back to sampling here if it didn't.
+  const queries = clientQueries && clientQueries.length > 0 ? clientQueries : selectSearchQueries(sentences);
 
-  // Step 3: web search (Serper primary, SerpApi fallback).
-  const searchOutcome = await runSearches(queries, { serperKey, serpapiKey });
+  // Step 3: web search (Serper primary, SerpApi fallback), skipping any
+  // queries the client already has fresh cached results for.
+  const searchOutcome = await runSearchesWithCache(queries, cachedResults ?? {}, {
+    serperKey,
+    serpapiKey,
+  });
   warnings.push(...searchOutcome.errors);
 
   if (searchOutcome.exhausted.serper && searchOutcome.exhausted.serpapi) {
@@ -106,6 +112,9 @@ export async function POST(req: NextRequest) {
     sentences: sentenceMatches,
     sources: scoreSummary.sources,
     queriesUsed: searchOutcome.queriesUsed,
+    cacheHits: searchOutcome.cacheHits,
+    freshResults: searchOutcome.freshResults,
+    exhausted: searchOutcome.exhausted,
     warnings,
   };
 

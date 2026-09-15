@@ -1,3 +1,4 @@
+import { normalizeQueryKey } from "./resultCache";
 import type { SearchProviderResult, SearchQuery, SearchResultItem } from "./types";
 
 export interface SearcherKeys {
@@ -10,6 +11,45 @@ export interface SearchOutcome {
   queriesUsed: { serper: number; serpapi: number };
   errors: string[];
   exhausted: { serper: boolean; serpapi: boolean };
+}
+
+export interface CachedSearchOutcome extends SearchOutcome {
+  /** Newly-fetched (non-cache) results, for the caller to persist into its cache. */
+  freshResults: { phrase: string; results: SearchResultItem[] }[];
+  cacheHits: number;
+}
+
+/**
+ * Like `runSearches`, but first checks a client-supplied cache of
+ * previously-fetched results (keyed by normalized query phrase) and only
+ * hits the live search APIs for cache misses — cache hits never count
+ * against either API's credit usage.
+ */
+export async function runSearchesWithCache(
+  queries: SearchQuery[],
+  cachedResults: Record<string, SearchResultItem[]>,
+  keys: SearcherKeys
+): Promise<CachedSearchOutcome> {
+  const results: SearchProviderResult[] = [];
+  const toSearch: SearchQuery[] = [];
+  let cacheHits = 0;
+
+  for (const q of queries) {
+    const cached = cachedResults[normalizeQueryKey(q.phrase)];
+    if (cached) {
+      results.push({ provider: "cache", query: q.phrase, results: cached });
+      cacheHits++;
+    } else {
+      toSearch.push(q);
+    }
+  }
+
+  const liveOutcome = await runSearches(toSearch, keys);
+  results.push(...liveOutcome.results);
+
+  const freshResults = liveOutcome.results.map((r) => ({ phrase: r.query, results: r.results }));
+
+  return { ...liveOutcome, results, freshResults, cacheHits };
 }
 
 /**
