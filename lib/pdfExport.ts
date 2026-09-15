@@ -1,14 +1,15 @@
 import jsPDF from "jspdf";
+import { generateCitation, type CitationStyle } from "./citations";
 import type { CheckResult } from "./types";
 
 const MARGIN = 48;
 
 /**
  * Builds the PDF report described in the plan: header, score summary,
- * per-source breakdown, full text with color-coded sentences, and a
- * disclaimer footer on every page.
+ * per-source breakdown, ready-to-paste citations, full text with
+ * color-coded sentences, and a disclaimer footer on every page.
  */
-export function generatePdfReport(result: CheckResult): jsPDF {
+export function generatePdfReport(result: CheckResult, citationStyle: CitationStyle): jsPDF {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -107,6 +108,31 @@ export function generatePdfReport(result: CheckResult): jsPDF {
     });
   }
   y += 10;
+
+  // --- Citations ---
+  if (result.sources.length > 0) {
+    ensureSpace(20);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(15, 23, 42);
+    doc.text(`Citations (${citationStyle.toUpperCase()})`, MARGIN, y);
+    y += 18;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(51, 65, 85);
+    result.sources.forEach((s) => {
+      const citation = generateCitation(s, citationStyle);
+      const wrapped = doc.splitTextToSize(citation, contentWidth);
+      for (const line of wrapped) {
+        ensureSpace(12);
+        doc.text(line, MARGIN, y);
+        y += 12;
+      }
+      y += 6;
+    });
+    y += 4;
+  }
 
   ensureSpace(20);
   doc.setDrawColor(226, 232, 240);

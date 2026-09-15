@@ -13,10 +13,12 @@ import PreCheckEstimate from "@/components/PreCheckEstimate";
 import DepletedOverlay from "@/components/DepletedOverlay";
 import HistoryPanel from "@/components/HistoryPanel";
 import ExportButton from "@/components/ExportButton";
+import UploadButton from "@/components/UploadButton";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { usePlagiarismCheck } from "@/hooks/usePlagiarismCheck";
 import { useCreditMonitor } from "@/hooks/useCreditMonitor";
 import { addEntry, removeEntry, toHistoryEntry } from "@/lib/history";
+import type { CitationStyle } from "@/lib/citations";
 import type { HistoryEntry } from "@/lib/types";
 
 export default function Home() {
@@ -29,6 +31,7 @@ export default function Home() {
   const [serpapiKey, setSerpapiKey] = useLocalStorage("plagcheck_serpapi_key", "");
   const [excludeUrlsRaw, setExcludeUrlsRaw] = useLocalStorage("plagcheck_exclude_urls", "");
   const [history, setHistory] = useLocalStorage<HistoryEntry[]>("plagcheck_history", []);
+  const [citationStyle, setCitationStyle] = useLocalStorage<CitationStyle>("plagcheck_citation_style", "apa");
 
   const { stage, result, error, runCheck, reset, searchProgress } = usePlagiarismCheck();
   const credits = useCreditMonitor();
@@ -90,10 +93,19 @@ export default function Home() {
 
         <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-[1fr_360px] lg:gap-6">
           <div className="flex min-h-0 flex-col">
-            <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              <SquarePen size={13} />
-              Your Text
-            </h2>
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <SquarePen size={13} />
+                Your Text
+              </h2>
+              {!result && (
+                <UploadButton
+                  onExtracted={(extracted) => {
+                    setText(extracted);
+                  }}
+                />
+              )}
+            </div>
             <TextEditor
               text={text}
               onChange={(t) => {
@@ -115,7 +127,11 @@ export default function Home() {
                   {error}
                 </div>
               ) : (
-                <ResultsPanel result={result} />
+                <ResultsPanel
+                  result={result}
+                  citationStyle={citationStyle}
+                  onCitationStyleChange={setCitationStyle}
+                />
               )}
             </div>
           </div>
@@ -140,7 +156,7 @@ export default function Home() {
             >
               {isChecking ? "Checking..." : "Check for Plagiarism"}
             </button>
-            {result && <ExportButton result={result} />}
+            {result && <ExportButton result={result} citationStyle={citationStyle} />}
           </div>
         </div>
       </main>

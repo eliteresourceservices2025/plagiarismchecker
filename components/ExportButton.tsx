@@ -2,15 +2,17 @@
 
 import { Download } from "lucide-react";
 import { generatePdfReport } from "@/lib/pdfExport";
+import type { CitationStyle } from "@/lib/citations";
 import type { CheckResult } from "@/lib/types";
 
 interface ExportButtonProps {
   result: CheckResult;
+  citationStyle: CitationStyle;
 }
 
-export default function ExportButton({ result }: ExportButtonProps) {
+export default function ExportButton({ result, citationStyle }: ExportButtonProps) {
   function handleExport() {
-    const doc = generatePdfReport(result);
+    const doc = generatePdfReport(result, citationStyle);
     const dateSlug = new Date().toISOString().slice(0, 10);
     doc.save(`plagcheck-report-${dateSlug}.pdf`);
   }

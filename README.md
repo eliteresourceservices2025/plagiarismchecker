@@ -30,6 +30,14 @@ serverless timeout.
 - **Fails loudly, not silently**: if every live search attempt fails (bad
   key, provider outage), the app throws a clear error instead of quietly
   returning a misleading "100% original"
+- **File upload**: `.txt`/`.md` read instantly client-side, `.html` parsed
+  client-side (no upload), `.pdf`/`.docx` extracted server-side (pdf-parse /
+  mammoth via `/api/extract-text`). Drag-and-drop onto the text box works
+  too.
+- **Citations**: APA/MLA/Chicago citation for every matched source, styled
+  as a standard "no listed author" web citation (site name in place of an
+  author, since scraped pages rarely expose one) — one click to copy, and
+  included in the PDF export
 
 ⏳ Not yet built: dark mode, batch checking, Supabase-backed *shared* usage
 tracking (see note below).

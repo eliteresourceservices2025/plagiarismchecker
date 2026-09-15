@@ -3,13 +3,16 @@
 import { FileSearch } from "lucide-react";
 import ScoreGauge from "./ScoreGauge";
 import SourceList from "./SourceList";
+import { CITATION_STYLES, type CitationStyle } from "@/lib/citations";
 import type { CheckResult } from "@/lib/types";
 
 interface ResultsPanelProps {
   result: CheckResult | null;
+  citationStyle: CitationStyle;
+  onCitationStyleChange: (style: CitationStyle) => void;
 }
 
-export default function ResultsPanel({ result }: ResultsPanelProps) {
+export default function ResultsPanel({ result, citationStyle, onCitationStyleChange }: ResultsPanelProps) {
   if (!result) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white/60 p-8 text-center">
@@ -37,10 +40,28 @@ export default function ResultsPanel({ result }: ResultsPanelProps) {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Matched Sources
-        </h3>
-        <SourceList sources={result.sources} />
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Matched Sources
+          </h3>
+          <div className="flex items-center gap-1 rounded-md bg-slate-100 p-0.5 text-xs">
+            {CITATION_STYLES.map((s) => (
+              <button
+                key={s.value}
+                onClick={() => onCitationStyleChange(s.value)}
+                title={`Cite as ${s.label}`}
+                className={`rounded px-2 py-0.5 font-medium transition ${
+                  citationStyle === s.value
+                    ? "bg-white text-brand shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <SourceList sources={result.sources} citationStyle={citationStyle} />
       </div>
 
       <div className="flex flex-col gap-1 px-1 text-xs text-slate-400">

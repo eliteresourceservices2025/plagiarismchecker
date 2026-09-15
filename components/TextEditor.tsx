@@ -1,6 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type DragEvent, type ReactNode } from "react";
+import toast from "react-hot-toast";
+import { UploadCloud } from "lucide-react";
+import { extractTextFromFile, SUPPORTED_EXTENSIONS } from "@/lib/fileExtract";
 import type { SentenceMatch } from "@/lib/types";
 
 interface TextEditorProps {
@@ -25,8 +28,31 @@ export default function TextEditor({
   onSentenceClick,
   readOnly,
 }: TextEditorProps) {
+  const [dragging, setDragging] = useState(false);
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
   const charCount = text.length;
+
+  async function handleDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    const toastId = toast.loading(`Reading ${file.name}...`);
+    try {
+      const extracted = await extractTextFromFile(file);
+      if (!extracted.trim()) {
+        toast.error("No readable text found in that file.", { id: toastId });
+        return;
+      }
+      onChange(extracted);
+      toast.success(`Loaded ${file.name}`, { id: toastId });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't read that file.", {
+        id: toastId,
+      });
+    }
+  }
 
   if (sentences && sentences.length > 0) {
     return (
@@ -44,14 +70,33 @@ export default function TextEditor({
 
   return (
     <div className="flex h-full flex-col">
-      <textarea
-        className="flex-1 resize-none rounded-xl border border-slate-200 bg-white p-4 text-slate-900 leading-relaxed shadow-sm outline-none transition-shadow placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand-light"
-        placeholder="Paste or type your article here to check its originality against the web…"
-        value={text}
-        onChange={(e) => onChange(e.target.value)}
-        readOnly={readOnly}
-        spellCheck={false}
-      />
+      <div
+        className="relative flex-1"
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={handleDrop}
+      >
+        <textarea
+          className="h-full w-full resize-none rounded-xl border border-slate-200 bg-white p-4 text-slate-900 leading-relaxed shadow-sm outline-none transition-shadow placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand-light"
+          placeholder="Paste or type your article here, or drop a file (.txt, .pdf, .docx, .md, .html)…"
+          value={text}
+          onChange={(e) => onChange(e.target.value)}
+          readOnly={readOnly}
+          spellCheck={false}
+        />
+        {dragging && (
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand bg-brand-light/90 text-brand">
+            <UploadCloud size={28} />
+            <p className="text-sm font-medium">Drop to upload</p>
+            <p className="text-xs text-brand/70">
+              {SUPPORTED_EXTENSIONS.map((e) => `.${e}`).join(" · ")}
+            </p>
+          </div>
+        )}
+      </div>
       <div className="mt-2 flex gap-4 text-xs text-slate-500">
         <span>{wordCount} words</span>
         <span>{charCount} characters</span>
