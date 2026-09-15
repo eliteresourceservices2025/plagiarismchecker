@@ -3,12 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { crossedThresholds, summarize } from "@/lib/creditTracker";
+import { readLocalWinstonCredits } from "@/lib/localWinstonCredits";
 import type { CreditState } from "@/lib/types";
 
 const EMPTY_STATE: CreditState = {
   configured: false,
   serper: { total: 2500, used: 0, firstUsedAt: null, expiresAt: null },
   serpapi: { usedThisMonth: 0, monthlyLimit: 250, currentMonth: "", resetsOn: new Date().toISOString() },
+  winstonKeyConfigured: false,
+  winston: { used: 0, remaining: null, lastUpdated: null },
   lastUpdated: new Date().toISOString(),
 };
 
@@ -50,7 +53,19 @@ export function useCreditMonitor() {
     try {
       const res = await fetch("/api/credits", { cache: "no-store" });
       if (!res.ok) return;
-      const data = (await res.json()) as CreditState;
+      let data = (await res.json()) as CreditState;
+
+      // No shared Redis store configured — the server can only ever report
+      // used: 0, remaining: null for Winston. Fall back to this browser's
+      // own record of Winston's last-known numbers (from its own API
+      // responses) rather than showing a static "0 / 0" that's just wrong.
+      if (!data.configured && data.winstonKeyConfigured) {
+        const local = readLocalWinstonCredits();
+        if (local) {
+          data = { ...data, winston: { used: local.used, remaining: local.remaining, lastUpdated: local.lastUpdated } };
+        }
+      }
+
       const nextSummary = summarize(data);
 
       if (prevPercentsRef.current) {

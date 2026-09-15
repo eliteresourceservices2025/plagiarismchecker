@@ -4,17 +4,27 @@ import { FileSearch } from "lucide-react";
 import ScoreGauge from "./ScoreGauge";
 import SourceList from "./SourceList";
 import QualityChecks from "./QualityChecks";
+import WinstonResultCard from "./WinstonResultCard";
+import AIDetectionCard from "./AIDetectionCard";
 import { CITATION_STYLES, type CitationStyle } from "@/lib/citations";
-import type { CheckResult } from "@/lib/types";
+import type { CheckResult, WinstonAIDetectionResult, WinstonPlagiarismResult } from "@/lib/types";
 
 interface ResultsPanelProps {
   result: CheckResult | null;
+  winstonResult?: WinstonPlagiarismResult | null;
+  aiDetection?: WinstonAIDetectionResult | null;
   citationStyle: CitationStyle;
   onCitationStyleChange: (style: CitationStyle) => void;
 }
 
-export default function ResultsPanel({ result, citationStyle, onCitationStyleChange }: ResultsPanelProps) {
-  if (!result) {
+export default function ResultsPanel({
+  result,
+  winstonResult,
+  aiDetection,
+  citationStyle,
+  onCitationStyleChange,
+}: ResultsPanelProps) {
+  if (!result && !winstonResult) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white/60 p-8 text-center">
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-light text-brand">
@@ -27,10 +37,26 @@ export default function ResultsPanel({ result, citationStyle, onCitationStyleCha
     );
   }
 
+  // The Winston engine produces its own result shape (it does its own
+  // web-search-and-match server-side) — shown as a separate card rather
+  // than forced into the Serper/SerpApi sentence-by-sentence breakdown
+  // below, which it wasn't computed to match.
+  if (winstonResult) {
+    return (
+      <div className="flex flex-col gap-6">
+        {aiDetection && <AIDetectionCard result={aiDetection} />}
+        <WinstonResultCard result={winstonResult} />
+      </div>
+    );
+  }
+
+  if (!result) return null;
   const { breakdown } = result;
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
+      {aiDetection && <AIDetectionCard result={aiDetection} />}
+
       <div className="flex flex-col items-center gap-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <ScoreGauge score={result.originalityScore} />
         <div className="flex w-full flex-col gap-2 text-sm">

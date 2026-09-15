@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { BatteryMedium, KeyRound, ShieldCheck, Sparkles, X } from "lucide-react";
+import { BatteryMedium, Bot, KeyRound, ShieldCheck, Sparkles, X } from "lucide-react";
 import CreditSettings from "./CreditSettings";
-import type { CreditState, CreditSummary } from "@/lib/types";
+import type { CreditState, CreditSummary, PlagiarismEngine } from "@/lib/types";
 
 interface SettingsPanelProps {
   open: boolean;
@@ -18,6 +18,10 @@ interface SettingsPanelProps {
   onResetMonthly: () => Promise<void>;
   onResetAllCredits: () => Promise<void>;
   onSyncUsage: (usage: { serperUsed?: number; serpapiUsedThisMonth?: number }) => Promise<void>;
+  engine: PlagiarismEngine;
+  onEngineChange: (engine: PlagiarismEngine) => void;
+  detectAI: boolean;
+  onDetectAIChange: (value: boolean) => void;
 }
 
 type Tab = "keys" | "usage" | "advanced";
@@ -35,6 +39,10 @@ export default function SettingsPanel({
   onResetMonthly,
   onResetAllCredits,
   onSyncUsage,
+  engine,
+  onEngineChange,
+  detectAI,
+  onDetectAIChange,
 }: SettingsPanelProps) {
   const [tab, setTab] = useState<Tab>("keys");
   const [localSerper, setLocalSerper] = useState(serperKey);
@@ -152,19 +160,60 @@ export default function SettingsPanel({
           )}
 
           {tab === "advanced" && (
-            <div className="flex flex-col gap-2">
-              <span className="text-sm font-medium text-slate-700">Exclude URLs</span>
-              <p className="text-xs text-slate-400">
-                One domain or URL per line. Matches from these sources are ignored — use this
-                for sites you own so republished content doesn&apos;t flag itself.
-              </p>
-              <textarea
-                value={localExclude}
-                onChange={(e) => setLocalExclude(e.target.value)}
-                placeholder={"yourblog.com\nanothersite.com/section"}
-                rows={5}
-                className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition-shadow focus:border-brand focus:ring-2 focus:ring-brand-light"
-              />
+            <div className="flex flex-col gap-5">
+              {creditState.winstonKeyConfigured && (
+                <div className="flex flex-col gap-2">
+                  <span className="text-sm font-medium text-slate-700">Plagiarism engine</span>
+                  <p className="text-xs text-slate-400">
+                    Web Search runs this app&apos;s own Serper/SerpApi pipeline (search, fetch,
+                    compare). Winston AI sends your text straight to gowinston.ai, which does its
+                    own web-match scan and returns a score and sources directly.
+                  </p>
+                  <div className="flex gap-2">
+                    <EngineOption
+                      active={engine === "web"}
+                      label="Web Search"
+                      sub="Serper / SerpApi"
+                      onClick={() => onEngineChange("web")}
+                    />
+                    <EngineOption
+                      active={engine === "winston"}
+                      label="Winston AI"
+                      sub="gowinston.ai"
+                      onClick={() => onEngineChange("winston")}
+                    />
+                  </div>
+
+                  <label className="mt-1 flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={detectAI}
+                      onChange={(e) => onDetectAIChange(e.target.checked)}
+                      className="h-3.5 w-3.5 accent-brand"
+                    />
+                    <Bot size={14} className="shrink-0 text-slate-400" />
+                    <span>
+                      Also run AI-content detection on every check (uses Winston credits
+                      separately from the plagiarism scan above).
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2">
+                <span className="text-sm font-medium text-slate-700">Exclude URLs</span>
+                <p className="text-xs text-slate-400">
+                  One domain or URL per line. Matches from these sources are ignored — use this
+                  for sites you own so republished content doesn&apos;t flag itself.
+                </p>
+                <textarea
+                  value={localExclude}
+                  onChange={(e) => setLocalExclude(e.target.value)}
+                  placeholder={"yourblog.com\nanothersite.com/section"}
+                  rows={5}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition-shadow focus:border-brand focus:ring-2 focus:ring-brand-light"
+                />
+              </div>
             </div>
           )}
         </div>
@@ -208,6 +257,32 @@ function TabButton({
     >
       {icon}
       {children}
+    </button>
+  );
+}
+
+function EngineOption({
+  active,
+  label,
+  sub,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  sub: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex flex-1 flex-col items-start gap-0.5 rounded-lg border px-3 py-2 text-left transition ${
+        active
+          ? "border-brand bg-brand-light text-brand"
+          : "border-slate-200 text-slate-500 hover:border-slate-300"
+      }`}
+    >
+      <span className="text-sm font-medium">{label}</span>
+      <span className="text-xs opacity-70">{sub}</span>
     </button>
   );
 }

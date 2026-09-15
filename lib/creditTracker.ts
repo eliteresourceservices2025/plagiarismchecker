@@ -25,6 +25,15 @@ export function summarize(state: CreditState): CreditSummary {
     daysUntilSerperExpiry = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
   }
 
+  // Winston's "total" isn't a known constant like Serper/SerpApi — it's
+  // derived from the latest authoritative `remaining` Winston itself
+  // reported, plus everything used since tracking started.
+  const winstonTotal =
+    state.winston.remaining !== null ? state.winston.remaining + state.winston.used : null;
+  const winstonPercentUsed =
+    winstonTotal !== null && winstonTotal > 0 ? clampPercent((state.winston.used / winstonTotal) * 100) : null;
+  const winstonExhausted = state.winston.remaining !== null && state.winston.remaining <= 0;
+
   return {
     configured: state.configured,
     serperRemaining,
@@ -37,6 +46,10 @@ export function summarize(state: CreditState): CreditSummary {
     allExhausted: serperExhausted && serpapiExhausted,
     daysUntilSerperExpiry,
     serpapiResetsOn: state.serpapi.resetsOn,
+    winstonKeyConfigured: state.winstonKeyConfigured,
+    winstonRemaining: state.winston.remaining,
+    winstonPercentUsed,
+    winstonExhausted,
   };
 }
 

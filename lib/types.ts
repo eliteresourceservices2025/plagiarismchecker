@@ -159,6 +159,18 @@ export interface CreditState {
     currentMonth: string; // "YYYY-MM"
     resetsOn: string; // ISO date
   };
+  /** Whether WINSTON_API_KEY is set on the server — separate from Redis
+   * `configured`, since the Winston *feature* can exist without shared
+   * usage tracking. Controls whether the engine picker / AI-detection UI
+   * shows up at all. */
+  winstonKeyConfigured: boolean;
+  winston: {
+    used: number; // cumulative credits consumed, tallied from each response's credits_used
+    /** Latest `credits_remaining` Winston itself reported — authoritative,
+     * unlike serper/serpapi's totals which are estimated from constants. */
+    remaining: number | null;
+    lastUpdated: string | null;
+  };
   lastUpdated: string;
 }
 
@@ -174,7 +186,62 @@ export interface CreditSummary {
   allExhausted: boolean;
   daysUntilSerperExpiry: number | null;
   serpapiResetsOn: string;
+  winstonKeyConfigured: boolean;
+  /** null until Winston has been called at least once (no known total yet). */
+  winstonRemaining: number | null;
+  winstonPercentUsed: number | null;
+  winstonExhausted: boolean;
 }
+
+// --- Winston AI (lib/winston.ts) ---
+//
+// A separate, optional integration — gowinston.ai's Plagiarism and AI
+// Content Detection APIs. Kept as its own result shape rather than merged
+// into CheckResult/SentenceMatch: Winston does its own web-search-and-match
+// pipeline server-side (unlike Serper/SerpApi, which only return URLs for
+// this app's own comparator to score), so its output isn't apples-to-apples
+// with the sentence-by-sentence breakdown above.
+
+export interface WinstonPlagiarismSource {
+  url: string;
+  title: string;
+  score: number; // 0-100, this source's share of the plagiarism found
+  plagiarismWords: number;
+  identicalWordCounts: number;
+  similarWordCounts: number;
+  totalNumberOfWords: number;
+  author: string | null;
+  publishedDate: number | null;
+  citation: boolean;
+  canAccess: boolean;
+}
+
+export interface WinstonPlagiarismResult {
+  score: number; // 0-100 plagiarism score (higher = more plagiarized)
+  textWordCount: number;
+  totalPlagiarismWords: number;
+  identicalWordCount: number;
+  similarWordCount: number;
+  sources: WinstonPlagiarismSource[];
+  attackDetected: { zeroWidthSpace: boolean; homoglyphAttack: boolean };
+  creditsUsed: number;
+  creditsRemaining: number;
+}
+
+export interface WinstonAIDetectionSentence {
+  text: string;
+  score: number; // 0-100 human-likelihood for this sentence
+}
+
+export interface WinstonAIDetectionResult {
+  score: number; // 0-100 overall "Human Score" (higher = more human-like)
+  sentences: WinstonAIDetectionSentence[];
+  readabilityScore: number;
+  creditsUsed: number;
+  creditsRemaining: number;
+}
+
+export type PlagiarismEngine = "web" | "winston";
 
 // --- Result cache (lib/resultCache.ts) ---
 

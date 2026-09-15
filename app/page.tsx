@@ -19,7 +19,7 @@ import { usePlagiarismCheck } from "@/hooks/usePlagiarismCheck";
 import { useCreditMonitor } from "@/hooks/useCreditMonitor";
 import { addEntry, removeEntry, toHistoryEntry } from "@/lib/history";
 import type { CitationStyle } from "@/lib/citations";
-import type { HistoryEntry } from "@/lib/types";
+import type { HistoryEntry, PlagiarismEngine } from "@/lib/types";
 
 export default function Home() {
   const [text, setText] = useState("");
@@ -32,33 +32,51 @@ export default function Home() {
   const [excludeUrlsRaw, setExcludeUrlsRaw] = useLocalStorage("plagcheck_exclude_urls", "");
   const [history, setHistory] = useLocalStorage<HistoryEntry[]>("plagcheck_history", []);
   const [citationStyle, setCitationStyle] = useLocalStorage<CitationStyle>("plagcheck_citation_style", "apa");
+  const [engine, setEngine] = useLocalStorage<PlagiarismEngine>("plagcheck_engine", "web");
+  const [detectAI, setDetectAI] = useLocalStorage("plagcheck_detect_ai", false);
 
-  const { stage, result, error, runCheck, reset, searchProgress } = usePlagiarismCheck();
+  const { stage, result, winstonResult, aiDetection, error, runCheck, reset, searchProgress } =
+    usePlagiarismCheck();
   const credits = useCreditMonitor();
+
+  // Winston isn't configured server-side (yet) — fall back to the web
+  // engine and never fire AI detection, regardless of what's saved locally.
+  const effectiveEngine: PlagiarismEngine = credits.state.winstonKeyConfigured ? engine : "web";
+  const effectiveDetectAI = credits.state.winstonKeyConfigured && detectAI;
 
   const isChecking = stage === "analyzing" || stage === "searching" || stage === "comparing";
   const lastRecordedResult = useRef<string | null>(null);
 
   // Record credit usage + history exactly once per completed check.
   useEffect(() => {
-    if (!result || stage !== "done") return;
-    const marker = `${result.totalWords}-${result.originalityScore}-${result.queriesUsed.serper}-${result.queriesUsed.serpapi}`;
-    if (lastRecordedResult.current === marker) return;
-    lastRecordedResult.current = marker;
+    if (stage !== "done") return;
 
-    // The server already recorded real usage against the shared counters
-    // at the moment each search happened — just pull the fresh numbers.
-    credits.refresh();
-    setHistory((prev) => addEntry(prev, toHistoryEntry(text, result)));
+    if (result) {
+      const marker = `${result.totalWords}-${result.originalityScore}-${result.queriesUsed.serper}-${result.queriesUsed.serpapi}`;
+      if (lastRecordedResult.current === marker) return;
+      lastRecordedResult.current = marker;
 
-    if (result.cacheHits > 0) {
-      toast.success(`Saved ${result.cacheHits} credit${result.cacheHits === 1 ? "" : "s"} from cache`, {
-        icon: "💾",
-        duration: 3000,
-      });
+      // The server already recorded real usage against the shared counters
+      // at the moment each search happened — just pull the fresh numbers.
+      credits.refresh();
+      setHistory((prev) => addEntry(prev, toHistoryEntry(text, result)));
+
+      if (result.cacheHits > 0) {
+        toast.success(`Saved ${result.cacheHits} credit${result.cacheHits === 1 ? "" : "s"} from cache`, {
+          icon: "💾",
+          duration: 3000,
+        });
+      }
+    } else if (winstonResult) {
+      // Winston's result shape doesn't map onto HistoryEntry/self-plagiarism
+      // history (see lib/history.ts) — just refresh the shared credit count.
+      const marker = `winston-${winstonResult.score}-${winstonResult.creditsRemaining}`;
+      if (lastRecordedResult.current === marker) return;
+      lastRecordedResult.current = marker;
+      credits.refresh();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result, stage]);
+  }, [result, winstonResult, stage]);
 
   const excludeUrls = excludeUrlsRaw
     .split("\n")
@@ -74,12 +92,24 @@ export default function Home() {
     // server-side keys, the server is the authoritative source of truth, so
     // this is only a heads-up, not a hard block. The server still returns a
     // clear error if the shared key really is out of credits.
-    if (credits.summary.allExhausted && !serperKey && !serpapiKey) {
+    if (
+      effectiveEngine === "web" &&
+      credits.summary.allExhausted &&
+      !serperKey &&
+      !serpapiKey
+    ) {
       setShowDepleted(true);
       return;
     }
 
-    await runCheck({ text, serperKey, serpapiKey, excludeUrls });
+    await runCheck({
+      text,
+      serperKey,
+      serpapiKey,
+      excludeUrls,
+      engine: effectiveEngine,
+      detectAI: effectiveDetectAI,
+    });
   }
 
   return (
@@ -100,7 +130,7 @@ export default function Home() {
                 <SquarePen size={13} />
                 Your Text
               </h2>
-              {!result && (
+              {!result && !winstonResult && (
                 <UploadButton
                   onExtracted={(extracted) => {
                     setText(extracted);
@@ -112,7 +142,7 @@ export default function Home() {
               text={text}
               onChange={(t) => {
                 setText(t);
-                if (result) reset();
+                if (result || winstonResult) reset();
               }}
               sentences={result?.sentences}
               selfMatchIndices={
@@ -134,6 +164,8 @@ export default function Home() {
               ) : (
                 <ResultsPanel
                   result={result}
+                  winstonResult={winstonResult}
+                  aiDetection={aiDetection}
                   citationStyle={citationStyle}
                   onCitationStyleChange={setCitationStyle}
                 />
@@ -144,9 +176,11 @@ export default function Home() {
 
         <div className="flex flex-col gap-3 border-t border-slate-200 pt-4">
           <ProgressBar stage={stage} searchProgress={searchProgress} />
-          {!isChecking && !result && <PreCheckEstimate text={text} summary={credits.summary} />}
+          {!isChecking && !result && !winstonResult && (
+            <PreCheckEstimate text={text} summary={credits.summary} />
+          )}
           <div className="flex flex-wrap justify-center gap-3">
-            {result && (
+            {(result || winstonResult) && (
               <button
                 onClick={() => reset()}
                 className="rounded-lg border border-slate-200 bg-white px-6 py-3 text-sm font-medium text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98]"
@@ -197,6 +231,10 @@ export default function Home() {
           }
         }}
         onSyncUsage={credits.syncUsage}
+        engine={engine}
+        onEngineChange={setEngine}
+        detectAI={detectAI}
+        onDetectAIChange={setDetectAI}
       />
 
       <HistoryPanel
@@ -217,7 +255,14 @@ export default function Home() {
           onDismiss={() => setShowDepleted(false)}
           onCheckAnyway={() => {
             setShowDepleted(false);
-            runCheck({ text, serperKey, serpapiKey, excludeUrls });
+            runCheck({
+              text,
+              serperKey,
+              serpapiKey,
+              excludeUrls,
+              engine: effectiveEngine,
+              detectAI: effectiveDetectAI,
+            });
           }}
         />
       )}

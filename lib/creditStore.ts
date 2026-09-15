@@ -60,12 +60,36 @@ export async function recordServerUsage(provider: "serper" | "serpapi"): Promise
 }
 
 /**
+ * Records a real Winston AI call — unlike Serper/SerpApi (where we estimate
+ * a total from a constant), Winston's own response tells us exactly how
+ * many credits that call cost and how many remain, so `remaining` is just
+ * overwritten with the latest authoritative value each time.
+ */
+export async function recordWinstonUsage(creditsUsed: number, creditsRemaining: number): Promise<void> {
+  const client = getRedis();
+  if (!client) return;
+
+  try {
+    await Promise.all([
+      client.incrby("credits:winston:used", creditsUsed),
+      client.set("credits:winston:remaining", creditsRemaining),
+      client.set("credits:winston:lastUpdated", new Date().toISOString()),
+    ]);
+  } catch {
+    // best-effort only
+  }
+}
+
+/**
  * Reads the current shared state. `serperKeyCount` scales the displayed
  * total (2500 per configured SERPER_API_KEY[_2]) — usage itself is tracked
  * as one combined counter rather than per-key, since what matters to a
  * viewer is combined remaining capacity, not which specific key was hit.
  */
-export async function getSharedCreditState(serperKeyCount: number): Promise<CreditState> {
+export async function getSharedCreditState(
+  serperKeyCount: number,
+  winstonKeyConfigured: boolean
+): Promise<CreditState> {
   const client = getRedis();
   const monthKey = currentMonthKey();
   const now = new Date().toISOString();
@@ -80,17 +104,23 @@ export async function getSharedCreditState(serperKeyCount: number): Promise<Cred
       currentMonth: monthKey,
       resetsOn: firstOfNextMonth().toISOString(),
     },
+    winstonKeyConfigured,
+    winston: { used: 0, remaining: null, lastUpdated: null },
     lastUpdated: now,
   };
 
   if (!client) return empty;
 
   try {
-    const [serperUsed, firstUsedAt, serpapiUsed] = await Promise.all([
-      client.get<number>("credits:serper:used"),
-      client.get<string>("credits:serper:firstUsedAt"),
-      client.get<number>(`credits:serpapi:${monthKey}:used`),
-    ]);
+    const [serperUsed, firstUsedAt, serpapiUsed, winstonUsed, winstonRemaining, winstonLastUpdated] =
+      await Promise.all([
+        client.get<number>("credits:serper:used"),
+        client.get<string>("credits:serper:firstUsedAt"),
+        client.get<number>(`credits:serpapi:${monthKey}:used`),
+        client.get<number>("credits:winston:used"),
+        client.get<number>("credits:winston:remaining"),
+        client.get<string>("credits:winston:lastUpdated"),
+      ]);
 
     const expiresAt = firstUsedAt
       ? new Date(new Date(firstUsedAt).getTime() + SIX_MONTHS_MS).toISOString()
@@ -100,6 +130,11 @@ export async function getSharedCreditState(serperKeyCount: number): Promise<Cred
       ...empty,
       serper: { total: serperTotal, used: serperUsed ?? 0, firstUsedAt: firstUsedAt ?? null, expiresAt },
       serpapi: { ...empty.serpapi, usedThisMonth: serpapiUsed ?? 0 },
+      winston: {
+        used: winstonUsed ?? 0,
+        remaining: winstonRemaining ?? null,
+        lastUpdated: winstonLastUpdated ?? null,
+      },
     };
   } catch {
     return empty; // Redis hiccup — degrade to a clean empty state rather than error
@@ -141,5 +176,8 @@ export async function resetSharedAll(): Promise<void> {
     client.del("credits:serper:used"),
     client.del("credits:serper:firstUsedAt"),
     client.del(`credits:serpapi:${currentMonthKey()}:used`),
+    client.del("credits:winston:used"),
+    client.del("credits:winston:remaining"),
+    client.del("credits:winston:lastUpdated"),
   ]);
 }

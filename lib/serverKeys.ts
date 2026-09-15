@@ -30,6 +30,13 @@ export function getServerSerperKeys(): string[] {
   );
 }
 
+/** Winston AI is a server-only shared key (no personal-key override in
+ * Settings) — it's a paid trial the team is evaluating, not a per-user
+ * account like Serper/SerpApi. */
+export function getServerWinstonKey(): string | undefined {
+  return process.env.WINSTON_API_KEY || undefined;
+}
+
 export function resolveKeys(clientSerperKey?: string, clientSerpapiKey?: string): ResolvedKeys {
   const serverSerperKeys = getServerSerperKeys();
 

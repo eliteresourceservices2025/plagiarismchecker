@@ -120,6 +120,23 @@ export default function CreditSettings({
         }
       />
 
+      {state.winstonKeyConfigured && (
+        <UsageRow
+          label="Winston AI"
+          used={state.winston.used}
+          total={state.winston.remaining !== null ? state.winston.used + state.winston.remaining : state.winston.used}
+          remaining={summary.winstonRemaining ?? 0}
+          percent={summary.winstonPercentUsed ?? 0}
+          footer={
+            state.winston.remaining === null
+              ? "No calls yet — total unknown until the first check"
+              : state.configured
+                ? "2 credits/word (plagiarism) · shared across everyone"
+                : "2 credits/word (plagiarism) · this browser only — set up Upstash Redis to share"
+          }
+        />
+      )}
+
       <div className="flex flex-col gap-2 rounded-lg border border-dashed border-slate-300 p-3">
         <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
           <RefreshCw size={12} />

@@ -5,13 +5,17 @@ import { tokenizeSentences } from "@/lib/tokenizer";
 import { selectSearchQueries } from "@/lib/sampler";
 import { getCached, normalizeQueryKey, purgeExpired, setCached } from "@/lib/resultCache";
 import { findSelfMatches } from "@/lib/selfPlagiarism";
+import { recordLocalWinstonUsage } from "@/lib/localWinstonCredits";
 import type {
   CheckResult,
   HistoryEntry,
+  PlagiarismEngine,
   ResultCache,
   SearchBatchResponse,
   SearchProviderResult,
   SearchQuery,
+  WinstonAIDetectionResult,
+  WinstonPlagiarismResult,
 } from "@/lib/types";
 
 export type CheckStage =
@@ -36,6 +40,11 @@ interface RunCheckArgs {
   serperKey?: string;
   serpapiKey?: string;
   excludeUrls?: string[];
+  engine?: PlagiarismEngine;
+  /** Fire Winston's AI-content-detection endpoint alongside the check
+   * (best-effort — a failure here never fails the overall check). Only
+   * meaningful when a Winston key is actually configured server-side. */
+  detectAI?: boolean;
 }
 
 interface SearchProgress {
@@ -89,17 +98,70 @@ function chunk<T>(items: T[], size: number): T[][] {
 export function usePlagiarismCheck() {
   const [stage, setStage] = useState<CheckStage>("idle");
   const [result, setResult] = useState<CheckResult | null>(null);
+  const [winstonResult, setWinstonResult] = useState<WinstonPlagiarismResult | null>(null);
+  const [aiDetection, setAiDetection] = useState<WinstonAIDetectionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchProgress, setSearchProgress] = useState<SearchProgress | null>(null);
 
-  const runCheck = useCallback(async ({ text, serperKey, serpapiKey, excludeUrls }: RunCheckArgs) => {
-    setError(null);
-    setResult(null);
-    setSearchProgress(null);
-    setStage("analyzing");
+  const runCheck = useCallback(
+    async ({ text, serperKey, serpapiKey, excludeUrls, engine = "web", detectAI = false }: RunCheckArgs) => {
+      setError(null);
+      setResult(null);
+      setWinstonResult(null);
+      setAiDetection(null);
+      setSearchProgress(null);
+      setStage("analyzing");
 
-    try {
-      // --- Sample + check cache ---
+      // Best-effort, runs alongside whichever engine is doing the plagiarism
+      // check — a failure here just means no AI-detection card, never fails
+      // the overall check.
+      const aiDetectionPromise = detectAI
+        ? fetch("/api/ai-detect", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text }),
+          })
+            .then(async (res) => {
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.error || "AI detection failed");
+              const aiResult = data as WinstonAIDetectionResult;
+              recordLocalWinstonUsage(aiResult.creditsUsed, aiResult.creditsRemaining);
+              setAiDetection(aiResult);
+            })
+            .catch(() => {
+              // silent — this is a bonus card, not a required part of the check
+            })
+        : Promise.resolve();
+
+      if (engine === "winston") {
+        try {
+          setStage("comparing");
+          const res = await fetch("/api/winston-plagiarism", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text, excludeUrls }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || `Request failed (${res.status})`);
+          }
+          const winstonPlagiarismResult = data as WinstonPlagiarismResult;
+          recordLocalWinstonUsage(winstonPlagiarismResult.creditsUsed, winstonPlagiarismResult.creditsRemaining);
+          await aiDetectionPromise;
+          setWinstonResult(winstonPlagiarismResult);
+          setStage("done");
+        } catch (err) {
+          await aiDetectionPromise;
+          setError(err instanceof Error ? err.message : "Something went wrong");
+          setStage("error");
+        } finally {
+          setSearchProgress(null);
+        }
+        return;
+      }
+
+      try {
+        // --- Sample + check cache ---
       const sentences = tokenizeSentences(text);
       const queries = selectSearchQueries(sentences);
 
@@ -211,22 +273,28 @@ export function usePlagiarismCheck() {
         finalResult.warnings.push("All configured search API credits appear to be depleted.");
       }
 
+      await aiDetectionPromise;
       setResult(finalResult);
       setStage("done");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-      setStage("error");
-    } finally {
-      setSearchProgress(null);
-    }
-  }, []);
+      } catch (err) {
+        await aiDetectionPromise;
+        setError(err instanceof Error ? err.message : "Something went wrong");
+        setStage("error");
+      } finally {
+        setSearchProgress(null);
+      }
+    },
+    []
+  );
 
   const reset = useCallback(() => {
     setStage("idle");
     setResult(null);
+    setWinstonResult(null);
+    setAiDetection(null);
     setError(null);
     setSearchProgress(null);
   }, []);
 
-  return { stage, result, error, runCheck, reset, searchProgress };
+  return { stage, result, winstonResult, aiDetection, error, runCheck, reset, searchProgress };
 }
