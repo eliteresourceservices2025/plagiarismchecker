@@ -112,12 +112,12 @@ export default function CreditSettings({
   return (
     <div className="flex flex-col gap-4">
       {state.configured ? (
-        <div className="flex items-center gap-1.5 rounded-lg bg-green-50 px-3 py-2 text-xs text-green-700">
+        <div className="flex items-center gap-1.5 rounded-lg bg-green-50 dark:bg-green-950/40 px-3 py-2 text-xs text-green-700 dark:text-green-400">
           <Users size={12} />
           Live and shared — everyone sees these same numbers.
         </div>
       ) : (
-        <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+        <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
           Shared tracking isn&apos;t set up yet — these numbers are just a placeholder. Ask an
           admin to add the Upstash Redis integration in Vercel.
         </div>
@@ -171,12 +171,12 @@ export default function CreditSettings({
         />
       )}
 
-      <div className="flex flex-col gap-2 rounded-lg border border-dashed border-slate-300 p-3">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+      <div className="flex flex-col gap-2 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 p-3">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-400">
           <RefreshCw size={12} />
           Sync with actual usage
         </div>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-slate-400 dark:text-slate-500">
           These numbers update automatically as the team uses the app. Only needed if usage
           happened outside the app (e.g. testing a key directly on Serper's console) and the
           shared count needs to be trued up to match the real dashboard.
@@ -184,23 +184,23 @@ export default function CreditSettings({
         <div className="flex flex-col gap-2">
           <div className="flex gap-2">
             <label className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="text-[11px] text-slate-500">Serper used</span>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">Serper used</span>
               <input
                 type="number"
                 min={0}
                 value={serperInput}
                 onChange={(e) => setSerperInput(e.target.value)}
-                className="w-full min-w-0 rounded-md border border-slate-200 px-2 py-1 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-light"
+                className="w-full min-w-0 rounded-md border border-slate-200 dark:border-slate-700 px-2 py-1 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-light"
               />
             </label>
             <label className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="text-[11px] text-slate-500">SerpApi used this month</span>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">SerpApi used this month</span>
               <input
                 type="number"
                 min={0}
                 value={serpapiInput}
                 onChange={(e) => setSerpapiInput(e.target.value)}
-                className="w-full min-w-0 rounded-md border border-slate-200 px-2 py-1 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-light"
+                className="w-full min-w-0 rounded-md border border-slate-200 dark:border-slate-700 px-2 py-1 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-light"
               />
             </label>
           </div>
@@ -214,12 +214,12 @@ export default function CreditSettings({
       </div>
 
       {state.winstonKeyConfigured && (
-        <div className="flex flex-col gap-2 rounded-lg border border-dashed border-slate-300 p-3">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+        <div className="flex flex-col gap-2 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 p-3">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-400">
             <RefreshCw size={12} />
             Sync Winston AI usage
           </div>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 dark:text-slate-500">
             Correct the shared count to match gowinston.ai&apos;s own dashboard — e.g. after a
             credit top-up, or if Winston was used outside this app. Leave &quot;remaining&quot;
             blank to only true up the used count.
@@ -227,24 +227,24 @@ export default function CreditSettings({
           <div className="flex flex-col gap-2">
             <div className="flex gap-2">
               <label className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className="text-[11px] text-slate-500">Winston used</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">Winston used</span>
                 <input
                   type="number"
                   min={0}
                   value={winstonUsedInput}
                   onChange={(e) => setWinstonUsedInput(e.target.value)}
-                  className="w-full min-w-0 rounded-md border border-slate-200 px-2 py-1 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-light"
+                  className="w-full min-w-0 rounded-md border border-slate-200 dark:border-slate-700 px-2 py-1 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-light"
                 />
               </label>
               <label className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className="text-[11px] text-slate-500">Winston remaining</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">Winston remaining</span>
                 <input
                   type="number"
                   min={0}
                   placeholder="optional"
                   value={winstonRemainingInput}
                   onChange={(e) => setWinstonRemainingInput(e.target.value)}
-                  className="w-full min-w-0 rounded-md border border-slate-200 px-2 py-1 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-light"
+                  className="w-full min-w-0 rounded-md border border-slate-200 dark:border-slate-700 px-2 py-1 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-light"
                 />
               </label>
             </div>
@@ -258,13 +258,13 @@ export default function CreditSettings({
         </div>
       )}
 
-      <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+      <div className="flex items-center justify-between rounded-lg bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs text-slate-500 dark:text-slate-400">
         <span>
           Result cache: {cacheMb === null ? "…" : cacheMb.toFixed(2)} / {MAX_CACHE_MB} MB
         </span>
         <button
           onClick={clearCache}
-          className="flex items-center gap-1 font-medium text-slate-500 hover:text-red-600"
+          className="flex items-center gap-1 font-medium text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400"
         >
           <Trash2 size={12} />
           Clear cache
@@ -273,7 +273,7 @@ export default function CreditSettings({
 
       <button
         onClick={onResetAll}
-        className="self-start text-xs font-medium text-slate-400 hover:text-red-600"
+        className="self-start text-xs font-medium text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400"
       >
         Reset all usage counters
       </button>
@@ -301,20 +301,20 @@ function UsageRow({
   const barColor = percent >= 95 ? "bg-red-500" : percent >= 80 ? "bg-amber-500" : "bg-brand";
 
   return (
-    <div className="flex flex-col gap-1.5 rounded-lg border border-slate-200 p-3">
+    <div className="flex flex-col gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 p-3">
       <div className="flex items-center justify-between text-sm">
-        <span className="font-medium text-slate-700">{label}</span>
-        <span className="text-slate-500">
+        <span className="font-medium text-slate-700 dark:text-slate-300">{label}</span>
+        <span className="text-slate-500 dark:text-slate-400">
           {used} / {total} used
         </span>
       </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
         <div
           className={`h-full rounded-full transition-all ${barColor}`}
           style={{ width: `${Math.min(percent, 100)}%` }}
         />
       </div>
-      <div className="flex items-center justify-between text-xs text-slate-400">
+      <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
         <span>
           {remaining} remaining · {footer}
         </span>

@@ -38,7 +38,7 @@ export default function UploadButton({ onExtracted }: UploadButtonProps) {
       <button
         onClick={() => inputRef.current?.click()}
         disabled={loading}
-        className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50"
+        className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-400 dark:text-slate-500 transition hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 disabled:opacity-50"
         title="Upload a .txt, .pdf, .docx, .md, or .html file"
       >
         {loading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}

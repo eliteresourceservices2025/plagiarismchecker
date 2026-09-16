@@ -26,11 +26,11 @@ export default function ResultsPanel({
 }: ResultsPanelProps) {
   if (!result && !winstonResult) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white/60 p-8 text-center">
+      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-white/60 dark:bg-slate-800/60 p-8 text-center">
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-light text-brand">
           <FileSearch size={22} />
         </span>
-        <p className="max-w-[220px] text-sm text-slate-500">
+        <p className="max-w-[220px] text-sm text-slate-500 dark:text-slate-400">
           Your originality score and matched sources will appear here.
         </p>
       </div>
@@ -50,7 +50,7 @@ export default function ResultsPanel({
       {winstonResult && (
         <div className="flex flex-col gap-2">
           {showBoth && (
-            <h3 className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <h3 className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
               Winston AI
             </h3>
           )}
@@ -61,7 +61,7 @@ export default function ResultsPanel({
       {result && (
         <div className="flex flex-col gap-2">
           {showBoth && (
-            <h3 className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <h3 className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
               Web Search
             </h3>
           )}
@@ -85,7 +85,7 @@ function WebResult({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col items-center rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex flex-col items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
         <DonutChart
           centerValue={`${Math.round(result.originalityScore)}%`}
           centerLabel="original"
@@ -97,12 +97,12 @@ function WebResult({
         />
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
             Matched Sources
           </h3>
-          <div className="flex items-center gap-1 rounded-md bg-slate-100 p-0.5 text-xs">
+          <div className="flex items-center gap-1 rounded-md bg-slate-100 dark:bg-slate-700 p-0.5 text-xs">
             {CITATION_STYLES.map((s) => (
               <button
                 key={s.value}
@@ -110,8 +110,8 @@ function WebResult({
                 title={`Cite as ${s.label}`}
                 className={`rounded px-2 py-0.5 font-medium transition ${
                   citationStyle === s.value
-                    ? "bg-white text-brand shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "bg-white dark:bg-slate-800 text-brand shadow-sm"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                 }`}
               >
                 {s.label}
@@ -124,7 +124,7 @@ function WebResult({
 
       <QualityChecks result={result} />
 
-      <div className="flex flex-col gap-1 px-1 text-xs text-slate-400">
+      <div className="flex flex-col gap-1 px-1 text-xs text-slate-400 dark:text-slate-500">
         <span>
           {result.totalWords} words · {result.sentenceCount} sentences · {result.sentencesChecked} searched
         </span>
@@ -134,7 +134,7 @@ function WebResult({
       </div>
 
       {result.warnings.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
+        <div className="rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 p-3 text-xs text-amber-700 dark:text-amber-400">
           {result.warnings.map((w, i) => (
             <p key={i}>{w}</p>
           ))}

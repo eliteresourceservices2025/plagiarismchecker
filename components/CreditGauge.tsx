@@ -10,10 +10,10 @@ interface CreditGaugeProps {
 }
 
 const SEVERITY_STYLES = {
-  ok: { icon: BatteryFull, className: "text-green-600 bg-green-50" },
-  warning: { icon: BatteryMedium, className: "text-amber-600 bg-amber-50" },
-  urgent: { icon: BatteryLow, className: "text-red-600 bg-red-50" },
-  depleted: { icon: BatteryWarning, className: "text-red-700 bg-red-100" },
+  ok: { icon: BatteryFull, className: "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/40" },
+  warning: { icon: BatteryMedium, className: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40" },
+  urgent: { icon: BatteryLow, className: "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40" },
+  depleted: { icon: BatteryWarning, className: "text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/40" },
 } as const;
 
 export default function CreditGauge({ summary, onClick }: CreditGaugeProps) {

@@ -1,15 +1,22 @@
 import jsPDF from "jspdf";
 import { generateCitation, type CitationStyle } from "./citations";
-import type { CheckResult } from "./types";
+import type { CheckResult, WinstonPlagiarismResult } from "./types";
 
 const MARGIN = 48;
 
 /**
- * Builds the PDF report described in the plan: header, score summary,
- * per-source breakdown, ready-to-paste citations, full text with
- * color-coded sentences, and a disclaimer footer on every page.
+ * Builds the PDF report: header, score summary(s), per-source breakdown,
+ * ready-to-paste citations, full text with color-coded sentences (web
+ * engine only — Winston doesn't return per-sentence positions in the
+ * submitted draft), and a disclaimer footer on every page. Accepts either
+ * engine's result, or both (Both mode) — whichever is non-null is
+ * rendered, each under its own section heading when both are present.
  */
-export function generatePdfReport(result: CheckResult, citationStyle: CitationStyle): jsPDF {
+export function generatePdfReport(
+  result: CheckResult | null,
+  winstonResult: WinstonPlagiarismResult | null,
+  citationStyle: CitationStyle
+): jsPDF {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -44,6 +51,125 @@ export function generatePdfReport(result: CheckResult, citationStyle: CitationSt
   doc.setDrawColor(226, 232, 240);
   doc.line(MARGIN, y, pageWidth - MARGIN, y);
   y += 24;
+
+  const showBoth = Boolean(result && winstonResult);
+  const sectionHeading = (title: string) => {
+    ensureSpace(22);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(138, 43, 226);
+    doc.text(title, MARGIN, y);
+    y += 20;
+  };
+
+  if (winstonResult) {
+    if (showBoth) sectionHeading("Winston AI");
+    y = appendWinstonSection(doc, winstonResult, { y, pageWidth, pageHeight, contentWidth, ensureSpace });
+    y += 16;
+  }
+
+  if (result) {
+    if (showBoth) sectionHeading("Web Search");
+    y = appendWebSection(doc, result, citationStyle, { y, pageWidth, pageHeight, contentWidth, ensureSpace });
+  }
+
+  // --- Footer on every page ---
+  const pageCount = doc.getNumberOfPages();
+  for (let p = 1; p <= pageCount; p++) {
+    doc.setPage(p);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text(
+      "For Elite Resource Services internal use only. Results are indicative, not definitive.",
+      MARGIN,
+      pageHeight - 24
+    );
+    doc.text(`Page ${p} of ${pageCount}`, pageWidth - MARGIN - 55, pageHeight - 24);
+  }
+
+  return doc;
+}
+
+interface SectionCtx {
+  y: number;
+  pageWidth: number;
+  pageHeight: number;
+  contentWidth: number;
+  ensureSpace: (lineHeight: number) => void;
+}
+
+function appendWinstonSection(doc: jsPDF, result: WinstonPlagiarismResult, ctx: SectionCtx): number {
+  const { pageWidth, contentWidth, ensureSpace } = ctx;
+  let y = ctx.y;
+  const originality = Math.max(0, 100 - result.score);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`Originality Score: ${originality.toFixed(0)}%`, MARGIN, y);
+  y += 14;
+
+  const [r, g, b] = scoreColor(originality);
+  doc.setFillColor(226, 232, 240);
+  doc.roundedRect(MARGIN, y, contentWidth, 8, 4, 4, "F");
+  doc.setFillColor(r, g, b);
+  doc.roundedRect(MARGIN, y, (contentWidth * Math.min(originality, 100)) / 100, 8, 4, 4, "F");
+  y += 26;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(51, 65, 85);
+  const lines = [
+    `Words checked: ${result.textWordCount}`,
+    `Identical words: ${result.identicalWordCount}   Similar words: ${result.similarWordCount}`,
+  ];
+  for (const line of lines) {
+    ensureSpace(14);
+    doc.text(line, MARGIN, y);
+    y += 14;
+  }
+  y += 12;
+
+  ensureSpace(20);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`Matched Sources (${result.sources.length})`, MARGIN, y);
+  y += 18;
+
+  if (result.sources.length === 0) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(22, 163, 74);
+    ensureSpace(16);
+    doc.text("No matching sources found — looks original.", MARGIN, y);
+    y += 20;
+  } else {
+    doc.setFontSize(9.5);
+    result.sources.forEach((s, i) => {
+      ensureSpace(28);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(51, 65, 85);
+      const label = doc.splitTextToSize(`${i + 1}. ${s.title || s.url}`, contentWidth - 70)[0];
+      doc.text(label, MARGIN, y);
+      doc.setTextColor(148, 163, 184);
+      doc.text(`${s.score.toFixed(1)}%`, pageWidth - MARGIN - 40, y);
+      y += 13;
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184);
+      doc.text(truncate(s.url, 90), MARGIN, y);
+      doc.setFontSize(9.5);
+      y += 15;
+    });
+  }
+
+  return y;
+}
+
+function appendWebSection(doc: jsPDF, result: CheckResult, citationStyle: CitationStyle, ctx: SectionCtx): number {
+  const { pageWidth, contentWidth, ensureSpace } = ctx;
+  let y = ctx.y;
 
   // --- Score summary ---
   doc.setFont("helvetica", "bold");
@@ -207,22 +333,7 @@ export function generatePdfReport(result: CheckResult, citationStyle: CitationSt
     y += 3;
   }
 
-  // --- Footer on every page ---
-  const pageCount = doc.getNumberOfPages();
-  for (let p = 1; p <= pageCount; p++) {
-    doc.setPage(p);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(148, 163, 184);
-    doc.text(
-      "This report was generated by PlagCheck. Results are indicative, not definitive.",
-      MARGIN,
-      pageHeight - 24
-    );
-    doc.text(`Page ${p} of ${pageCount}`, pageWidth - MARGIN - 55, pageHeight - 24);
-  }
-
-  return doc;
+  return y;
 }
 
 function scoreColor(score: number): [number, number, number] {

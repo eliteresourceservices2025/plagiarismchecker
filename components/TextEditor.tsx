@@ -18,12 +18,12 @@ interface TextEditorProps {
 const HIGHLIGHT_CLASSES: Record<SentenceMatch["classification"], string> = {
   original: "",
   paraphrased:
-    "bg-amber-100 rounded px-0.5 cursor-pointer transition-colors hover:bg-amber-200",
-  matched: "bg-red-100 rounded px-0.5 cursor-pointer transition-colors hover:bg-red-200",
+    "bg-amber-100 dark:bg-amber-900/40 rounded px-0.5 cursor-pointer transition-colors hover:bg-amber-200 dark:hover:bg-amber-900/50",
+  matched: "bg-red-100 dark:bg-red-900/40 rounded px-0.5 cursor-pointer transition-colors hover:bg-red-200 dark:hover:bg-red-900/50",
 };
 
 const SELF_MATCH_CLASS =
-  "bg-purple-100 rounded px-0.5 cursor-pointer transition-colors hover:bg-purple-200";
+  "bg-purple-100 dark:bg-purple-900/40 rounded px-0.5 cursor-pointer transition-colors hover:bg-purple-200 dark:hover:bg-purple-900/50";
 
 export default function TextEditor({
   text,
@@ -62,10 +62,10 @@ export default function TextEditor({
   if (sentences && sentences.length > 0) {
     return (
       <div className="flex h-full flex-col">
-        <div className="flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 text-slate-900 leading-relaxed whitespace-pre-wrap shadow-sm animate-fade-in">
+        <div className="flex-1 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-slate-900 dark:text-slate-100 leading-relaxed whitespace-pre-wrap shadow-sm animate-fade-in">
           {renderHighlightedText(text, sentences, selfMatchIndices, onSentenceClick)}
         </div>
-        <div className="mt-2 flex gap-4 text-xs text-slate-500">
+        <div className="mt-2 flex gap-4 text-xs text-slate-500 dark:text-slate-400">
           <span>{wordCount} words</span>
           <span>{charCount} characters</span>
         </div>
@@ -85,7 +85,7 @@ export default function TextEditor({
         onDrop={handleDrop}
       >
         <textarea
-          className="h-full w-full resize-none rounded-xl border border-slate-200 bg-white p-4 text-slate-900 leading-relaxed shadow-sm outline-none transition-shadow placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-brand-light"
+          className="h-full w-full resize-none rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-slate-900 dark:text-slate-100 leading-relaxed shadow-sm outline-none transition-shadow placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-brand focus:ring-2 focus:ring-brand-light"
           placeholder="Paste or type your article here, or drop a file (.txt, .pdf, .docx, .md, .html)…"
           value={text}
           onChange={(e) => onChange(e.target.value)}
@@ -102,7 +102,7 @@ export default function TextEditor({
           </div>
         )}
       </div>
-      <div className="mt-2 flex gap-4 text-xs text-slate-500">
+      <div className="mt-2 flex gap-4 text-xs text-slate-500 dark:text-slate-400">
         <span>{wordCount} words</span>
         <span>{charCount} characters</span>
       </div>

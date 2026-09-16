@@ -50,7 +50,7 @@ export default function PreCheckEstimate({ text, summary, engine }: PreCheckEsti
   }
 
   return (
-    <p className="flex items-center justify-center gap-1.5 text-center text-xs text-slate-400">
+    <p className="flex items-center justify-center gap-1.5 text-center text-xs text-slate-400 dark:text-slate-500">
       <Info size={12} />
       This check will use {parts.join(" + ")}
       {runsWeb ? " (fewer search credits if some phrases are cached)" : ""}.

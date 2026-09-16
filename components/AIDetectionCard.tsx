@@ -17,9 +17,9 @@ export default function AIDetectionCard({ result }: AIDetectionCardProps) {
   const aiLikelihood = Math.max(0, 100 - result.score);
   const tone = aiLikelihood >= 70 ? "red" : aiLikelihood >= 40 ? "amber" : "green";
   const toneClasses = {
-    green: "bg-green-50 text-green-700 border-green-200",
-    amber: "bg-amber-50 text-amber-700 border-amber-200",
-    red: "bg-red-50 text-red-700 border-red-200",
+    green: "bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900",
+    amber: "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900",
+    red: "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900",
   }[tone];
 
   const flaggedSentences = result.sentences.filter((s) => 100 - s.score >= 50);
@@ -51,7 +51,7 @@ export default function AIDetectionCard({ result }: AIDetectionCardProps) {
           {expanded && (
             <ul className="flex flex-col gap-1">
               {flaggedSentences.map((s, i) => (
-                <li key={i} className="rounded-lg bg-white/60 px-3 py-2 text-xs">
+                <li key={i} className="rounded-lg bg-white/60 dark:bg-black/20 px-3 py-2 text-xs">
                   {s.text}
                 </li>
               ))}

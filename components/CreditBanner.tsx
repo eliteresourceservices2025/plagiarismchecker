@@ -54,9 +54,9 @@ function Banner({
   children: ReactNode;
 }) {
   const toneClasses = {
-    warning: "bg-amber-50 text-amber-800 border-amber-200",
-    urgent: "bg-red-50 text-red-800 border-red-200",
-    depleted: "bg-red-100 text-red-900 border-red-300",
+    warning: "bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400 border-amber-200 dark:border-amber-900",
+    urgent: "bg-red-50 dark:bg-red-950/40 text-red-800 dark:text-red-400 border-red-200 dark:border-red-900",
+    depleted: "bg-red-100 dark:bg-red-900/40 text-red-900 dark:text-red-300 border-red-300 dark:border-red-700",
   }[tone];
 
   return (

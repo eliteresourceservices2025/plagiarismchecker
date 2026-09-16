@@ -32,13 +32,13 @@ export default function ProgressBar({ stage, searchProgress }: ProgressBarProps)
 
   return (
     <div className="flex flex-col gap-2 animate-fade-in">
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
         <div
           className="h-full rounded-full bg-gradient-to-r from-brand to-indigo-400 transition-all duration-700 ease-out"
           style={{ width: `${percent}%` }}
         />
       </div>
-      <p className="flex items-center justify-center gap-1.5 text-sm text-slate-500">
+      <p className="flex items-center justify-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
         <Loader2 size={14} className="animate-spin text-brand" />
         {label}
       </p>

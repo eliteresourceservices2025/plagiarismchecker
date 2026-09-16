@@ -14,6 +14,8 @@ import DepletedOverlay from "@/components/DepletedOverlay";
 import HistoryPanel from "@/components/HistoryPanel";
 import ExportButton from "@/components/ExportButton";
 import UploadButton from "@/components/UploadButton";
+import UrlCheckButton from "@/components/UrlCheckButton";
+import AIDetectionToggle from "@/components/AIDetectionToggle";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { usePlagiarismCheck } from "@/hooks/usePlagiarismCheck";
 import { useCreditMonitor } from "@/hooks/useCreditMonitor";
@@ -126,16 +128,23 @@ export default function Home() {
         <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-[1fr_360px] lg:gap-6">
           <div className="flex min-h-0 flex-col">
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
                 <SquarePen size={13} />
                 Your Text
               </h2>
               {!result && !winstonResult && (
-                <UploadButton
-                  onExtracted={(extracted) => {
-                    setText(extracted);
-                  }}
-                />
+                <div className="flex items-center gap-1">
+                  <UrlCheckButton
+                    onExtracted={(extracted) => {
+                      setText(extracted);
+                    }}
+                  />
+                  <UploadButton
+                    onExtracted={(extracted) => {
+                      setText(extracted);
+                    }}
+                  />
+                </div>
               )}
             </div>
             <TextEditor
@@ -152,13 +161,13 @@ export default function Home() {
           </div>
 
           <div className="flex min-h-0 flex-col">
-            <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
               <ScanSearch size={13} />
               Originality Score
             </h2>
             <div className="min-h-0 flex-1 overflow-y-auto pr-1">
               {error ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 shadow-sm">
+                <div className="rounded-xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 p-4 text-sm text-red-700 dark:text-red-400 shadow-sm">
                   {error}
                 </div>
               ) : (
@@ -174,8 +183,13 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-slate-200 pt-4">
+        <div className="flex flex-col gap-3 border-t border-slate-200 dark:border-slate-700 pt-4">
           <ProgressBar stage={stage} searchProgress={searchProgress} />
+          {!isChecking && !result && !winstonResult && credits.state.winstonKeyConfigured && (
+            <div className="flex justify-center">
+              <AIDetectionToggle enabled={detectAI} onChange={setDetectAI} />
+            </div>
+          )}
           {!isChecking && !result && !winstonResult && (
             <PreCheckEstimate text={text} summary={credits.summary} engine={effectiveEngine} />
           )}
@@ -183,7 +197,7 @@ export default function Home() {
             {(result || winstonResult) && (
               <button
                 onClick={() => reset()}
-                className="rounded-lg border border-slate-200 bg-white px-6 py-3 text-sm font-medium text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98]"
+                className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-6 py-3 text-sm font-medium text-slate-600 dark:text-slate-400 shadow-sm transition hover:border-slate-300 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-[0.98]"
               >
                 Edit Text
               </button>
@@ -195,10 +209,16 @@ export default function Home() {
             >
               {isChecking ? "Checking..." : "Check for Plagiarism"}
             </button>
-            {result && <ExportButton result={result} citationStyle={citationStyle} />}
+            {(result || winstonResult) && (
+              <ExportButton result={result} winstonResult={winstonResult} citationStyle={citationStyle} />
+            )}
           </div>
         </div>
       </main>
+
+      <footer className="shrink-0 border-t border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-900/60 py-1.5 text-center text-[11px] text-slate-400 dark:text-slate-500">
+        This tool is exclusively for Elite Resource Services Internal Team.
+      </footer>
 
       <SettingsPanel
         open={settingsOpen}

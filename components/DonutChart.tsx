@@ -70,8 +70,8 @@ export default function DonutChart({ segments, size = 160, centerValue, centerLa
         </svg>
         {(centerValue || centerLabel) && (
           <div className="absolute flex flex-col items-center">
-            {centerValue && <span className="text-3xl font-bold text-slate-900">{centerValue}</span>}
-            {centerLabel && <span className="text-xs text-slate-500">{centerLabel}</span>}
+            {centerValue && <span className="text-3xl font-bold text-slate-900 dark:text-slate-100">{centerValue}</span>}
+            {centerLabel && <span className="text-xs text-slate-500 dark:text-slate-400">{centerLabel}</span>}
           </div>
         )}
       </div>
@@ -80,13 +80,13 @@ export default function DonutChart({ segments, size = 160, centerValue, centerLa
         {segments.map((seg) => (
           <li
             key={seg.label}
-            className="flex items-center justify-between rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50"
+            className="flex items-center justify-between rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"
           >
-            <span className="flex items-center gap-2 text-slate-600">
+            <span className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
               <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: seg.color }} />
               {seg.label}
             </span>
-            <span className="font-medium text-slate-700">{seg.value.toFixed(1)}%</span>
+            <span className="font-medium text-slate-700 dark:text-slate-300">{seg.value.toFixed(1)}%</span>
           </li>
         ))}
       </ul>

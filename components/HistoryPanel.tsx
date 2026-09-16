@@ -20,7 +20,7 @@ export default function HistoryPanel({ open, entries, onClose, onClear, onRemove
       onClick={onClose}
     >
       <div
-        className="flex max-h-[80vh] w-full max-w-md flex-col rounded-2xl bg-white p-6 shadow-xl"
+        className="flex max-h-[80vh] w-full max-w-md flex-col rounded-2xl bg-white dark:bg-slate-800 p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -28,11 +28,11 @@ export default function HistoryPanel({ open, entries, onClose, onClear, onRemove
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-light text-brand">
               <History size={18} />
             </span>
-            <h2 className="text-lg font-semibold text-slate-900">Check History</h2>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Check History</h2>
           </div>
           <button
             onClick={onClose}
-            className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-md p-1.5 text-slate-400 dark:text-slate-500 transition hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300"
             aria-label="Close history"
           >
             <X size={18} />
@@ -40,7 +40,7 @@ export default function HistoryPanel({ open, entries, onClose, onClear, onRemove
         </div>
 
         {entries.length === 0 ? (
-          <p className="py-8 text-center text-sm text-slate-400">
+          <p className="py-8 text-center text-sm text-slate-400 dark:text-slate-500">
             No checks yet — your recent checks will show up here.
           </p>
         ) : (
@@ -48,7 +48,7 @@ export default function HistoryPanel({ open, entries, onClose, onClear, onRemove
             {entries.map((entry) => (
               <li
                 key={entry.id}
-                className="group flex items-start gap-3 rounded-lg px-2 py-2.5 transition hover:bg-slate-50"
+                className="group flex items-start gap-3 rounded-lg px-2 py-2.5 transition hover:bg-slate-50 dark:hover:bg-slate-700"
               >
                 <span
                   className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
@@ -60,15 +60,15 @@ export default function HistoryPanel({ open, entries, onClose, onClear, onRemove
                   {Math.round(entry.originalityScore)}%
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-slate-700">{entry.preview || "(empty)"}</p>
-                  <p className="text-xs text-slate-400">
+                  <p className="truncate text-sm text-slate-700 dark:text-slate-300">{entry.preview || "(empty)"}</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">
                     {formatDate(entry.createdAt)} · {entry.totalWords} words · {entry.sourceCount}{" "}
                     source{entry.sourceCount === 1 ? "" : "s"}
                   </p>
                 </div>
                 <button
                   onClick={() => onRemove(entry.id)}
-                  className="shrink-0 rounded-md p-1.5 text-slate-300 opacity-0 transition hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
+                  className="shrink-0 rounded-md p-1.5 text-slate-300 dark:text-slate-600 opacity-0 transition hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-500 dark:hover:text-red-400 group-hover:opacity-100"
                   aria-label="Remove entry"
                 >
                   <Trash2 size={14} />
@@ -81,7 +81,7 @@ export default function HistoryPanel({ open, entries, onClose, onClear, onRemove
         {entries.length > 0 && (
           <button
             onClick={onClear}
-            className="mt-4 self-start text-xs font-medium text-slate-400 hover:text-red-600"
+            className="mt-4 self-start text-xs font-medium text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400"
           >
             Clear all history
           </button>

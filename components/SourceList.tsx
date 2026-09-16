@@ -14,7 +14,7 @@ interface SourceListProps {
 export default function SourceList({ sources, citationStyle }: SourceListProps) {
   if (sources.length === 0) {
     return (
-      <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
+      <p className="rounded-lg bg-green-50 dark:bg-green-950/40 px-3 py-2 text-sm text-green-700 dark:text-green-400">
         No matching sources found — looks original!
       </p>
     );
@@ -52,7 +52,7 @@ function SourceRow({
 
   return (
     <li
-      className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-slate-50"
+      className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -62,22 +62,22 @@ function SourceRow({
         rel="noopener noreferrer"
         className="group flex min-w-0 flex-1 items-center gap-2.5"
       >
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-50 text-[10px] font-semibold text-red-500">
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-50 dark:bg-red-950/40 text-[10px] font-semibold text-red-500 dark:text-red-400">
           {index + 1}
         </span>
-        <span className="min-w-0 flex-1 truncate text-slate-700 group-hover:text-brand" title={source.title || source.url}>
+        <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-300 group-hover:text-brand" title={source.title || source.url}>
           {formatHostname(source.url)}
         </span>
-        <span className="shrink-0 font-medium text-slate-500">{source.matchPercent.toFixed(1)}%</span>
+        <span className="shrink-0 font-medium text-slate-500 dark:text-slate-400">{source.matchPercent.toFixed(1)}%</span>
         <ExternalLink
           size={13}
-          className={`shrink-0 text-slate-300 transition-opacity ${hovered ? "opacity-100" : "opacity-0"}`}
+          className={`shrink-0 text-slate-300 dark:text-slate-600 transition-opacity ${hovered ? "opacity-100" : "opacity-0"}`}
         />
       </a>
       <button
         onClick={onCite}
         title="Copy citation"
-        className="shrink-0 rounded-md p-1.5 text-slate-400 transition hover:bg-brand-light hover:text-brand"
+        className="shrink-0 rounded-md p-1.5 text-slate-400 dark:text-slate-500 transition hover:bg-brand-light hover:text-brand"
       >
         <Quote size={13} />
       </button>

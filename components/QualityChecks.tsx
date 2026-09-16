@@ -18,13 +18,13 @@ export default function QualityChecks({ result }: QualityChecksProps) {
   if (missingQuotesCount === 0 && !hasFormatting && !hasSelfMatches) return null;
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+    <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
         Additional Checks
       </h3>
 
       {missingQuotesCount > 0 && (
-        <div className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+        <div className="flex items-start gap-2 rounded-lg bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs text-red-700 dark:text-red-400">
           <Quote size={14} className="mt-0.5 shrink-0" />
           <span>
             {missingQuotesCount} verbatim match{missingQuotesCount === 1 ? "" : "es"} in your
@@ -36,7 +36,7 @@ export default function QualityChecks({ result }: QualityChecksProps) {
 
       {hasSelfMatches && (
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-purple-700">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-purple-700 dark:text-purple-400">
             <Copy size={13} />
             Matches your own past checks
           </div>
@@ -44,7 +44,7 @@ export default function QualityChecks({ result }: QualityChecksProps) {
             {dedupeByCheck(result.selfMatches).map((m) => (
               <li
                 key={m.matchedCheckId}
-                className="rounded-lg bg-purple-50 px-3 py-2 text-xs text-purple-700"
+                className="rounded-lg bg-purple-50 dark:bg-purple-950/40 px-3 py-2 text-xs text-purple-700 dark:text-purple-400"
               >
                 {m.count} sentence{m.count === 1 ? "" : "s"} match your check from{" "}
                 {formatDate(m.matchedCheckDate)} ("{m.matchedPreview.slice(0, 60)}
@@ -57,13 +57,13 @@ export default function QualityChecks({ result }: QualityChecksProps) {
 
       {hasFormatting && (
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-amber-700">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
             <Sparkles size={13} />
             Formatting anomalies
           </div>
           <ul className="flex flex-col gap-1">
             {result.formattingWarnings.map((w) => (
-              <li key={w.type} className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              <li key={w.type} className="rounded-lg bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
                 {w.message}
               </li>
             ))}

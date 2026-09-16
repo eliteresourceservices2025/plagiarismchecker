@@ -23,8 +23,8 @@ export default function WinstonResultCard({ result }: WinstonResultCardProps) {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
-      <div className="flex flex-col items-center gap-2 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <div className="flex flex-col items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
           Winston AI Plagiarism Score
         </span>
         <DonutChart
@@ -36,11 +36,11 @@ export default function WinstonResultCard({ result }: WinstonResultCardProps) {
             { label: "Identical", value: identicalPercent, color: "#EF4444" },
           ]}
         />
-        <span className="pt-1 text-xs text-slate-400">{result.textWordCount} words checked</span>
+        <span className="pt-1 text-xs text-slate-400 dark:text-slate-500">{result.textWordCount} words checked</span>
       </div>
 
       {hasAttack && (
-        <div className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+        <div className="flex items-start gap-2 rounded-lg bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs text-red-700 dark:text-red-400">
           <ShieldAlert size={14} className="mt-0.5 shrink-0" />
           <span>
             Winston detected a possible evasion attack in this text
@@ -51,16 +51,16 @@ export default function WinstonResultCard({ result }: WinstonResultCardProps) {
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
           Matched Sources ({result.sources.length})
         </h3>
         {result.sources.length === 0 ? (
-          <p className="text-sm text-slate-400">No matching sources found.</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500">No matching sources found.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {result.sources.map((s) => (
-              <li key={s.url} className="rounded-lg border border-slate-100 p-3 text-xs">
+              <li key={s.url} className="rounded-lg border border-slate-100 dark:border-slate-700 p-3 text-xs">
                 <a
                   href={s.url}
                   target="_blank"
@@ -70,8 +70,8 @@ export default function WinstonResultCard({ result }: WinstonResultCardProps) {
                   {s.title || s.url}
                   <ExternalLink size={11} className="shrink-0" />
                 </a>
-                <p className="mt-1 truncate text-slate-400">{s.url}</p>
-                <p className="mt-1 text-slate-500">
+                <p className="mt-1 truncate text-slate-400 dark:text-slate-500">{s.url}</p>
+                <p className="mt-1 text-slate-500 dark:text-slate-400">
                   {s.score.toFixed(1)}% match · {s.plagiarismWords} of {s.totalNumberOfWords} words
                   {s.citation ? " · cited" : ""}
                 </p>

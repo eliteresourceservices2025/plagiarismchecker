@@ -23,12 +23,12 @@ export default function DepletedOverlay({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-[2px] animate-fade-in">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl">
-        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+      <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-slate-800 p-6 text-center shadow-xl">
+        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400">
           <Ban size={22} />
         </span>
-        <h2 className="mt-4 text-lg font-semibold text-slate-900">This browser looks out of credits</h2>
-        <p className="mt-2 text-sm text-slate-500">
+        <h2 className="mt-4 text-lg font-semibold text-slate-900 dark:text-slate-100">This browser looks out of credits</h2>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
           Based on usage tracked in this browser, the shared credits look used up.
           SerpApi&apos;s free quota resets on <strong>{resetsOn}</strong>. If a teammate
           also uses the shared key, this estimate may be stale — you can still try the
@@ -37,13 +37,13 @@ export default function DepletedOverlay({
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           <button
             onClick={onDismiss}
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            className="rounded-lg border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
           >
             Dismiss
           </button>
           <button
             onClick={onOpenSettings}
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            className="rounded-lg border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
           >
             Open Settings
           </button>
