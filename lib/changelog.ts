@@ -1,4 +1,4 @@
-export const APP_VERSION = "1.3.0";
+export const APP_VERSION = "1.4.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -8,6 +8,13 @@ export interface ChangelogEntry {
 
 // Newest first. Bump APP_VERSION alongside adding an entry here.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.4.0",
+    date: "2026-09-16",
+    notes: [
+      "Added: email-allowlist login gate — the app now requires a sign-in from an approved ERS team email before use",
+    ],
+  },
   {
     version: "1.3.0",
     date: "2026-09-15",
