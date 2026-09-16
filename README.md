@@ -11,12 +11,18 @@ both at once.
 **Phases 1, 2, 3, 5, and part of 7 are done**, plus a shared-key deployment
 model (see below), a chunked-request rewrite so checks survive Vercel's
 serverless timeout, a Winston AI integration (alternate plagiarism engine +
-AI-content detection), and ERS brand styling.
+AI-content detection), ERS brand styling, and a manual dark mode.
 
 ✅ Implemented:
 - Next.js 16 (App Router) + TypeScript + TailwindCSS, styled with
   eliteresourceservices.com's own brand colors (`#8A2BE2` purple primary)
-  and type system (Source Sans 3 headings, Inter body)
+  and type system (Source Sans 3 headings, Inter body). **Dark mode**
+  toggle in the header (persisted, no flash on reload) — a neutral dark
+  surface with brand purple kept strictly as an accent, never the
+  dominant background
+- Three ways to get text in: paste/type, **file upload** (see below), or
+  **Check URL** — paste a published blog/article URL and the app fetches
+  and extracts its text server-side, ready to check like any pasted draft
 - `/api/search` + `/api/check`: sentence tokenizer → client-side smart
   distinctiveness sampling (max 20 queries, sent to `/api/search` in
   batches of 5 so each request stays well under 10s) → Serper search with
@@ -30,10 +36,15 @@ AI-content detection), and ERS brand styling.
     concurrently; if one engine fails the other's result still shows)
   - **AI-generated-content detection** — an independent check (Winston's
     "Human Score") that can run alongside either plagiarism engine,
-    flagging sentences likely written by AI
+    flagging sentences likely written by AI. A quick-access toggle sits
+    right on the dashboard (above the Check button) whenever Winston is
+    configured — not just in Settings → Advanced
 - Results panel: donut-chart score breakdown (original/paraphrased/matched,
   or original/similar/identical for Winston) with legend and center score,
-  per-source match list, inline sentence highlighting, PDF export
+  per-source match list, inline sentence highlighting, PDF export (works
+  for the web-search result, the Winston result, or both at once)
+- **Settings → About**: current app version and a changelog of what
+  shipped when
 - **Credit monitoring**: usage tracking, toast alerts at 80/90/95/100%
   thresholds, header credit gauge, persistent banner, pre-check estimate
   (engine-aware — quotes Serper/SerpApi, Winston, or both), Settings →
@@ -63,10 +74,14 @@ AI-content detection), and ERS brand styling.
   - Manual credit-usage sync (Settings → Usage) to correct the per-browser
     gauge against Serper's/SerpApi's real dashboard numbers
 
-⏳ Not yet built: dark mode, batch checking, and merging Winston's
-plagiarism result into the self-plagiarism/history comparison (it's
-tracked as a separate result shape from the Serper/SerpApi `CheckResult`
-by design — see `lib/winston.ts`).
+⏳ Not yet built: batch checking, and merging Winston's plagiarism result
+into the self-plagiarism/history comparison (it's tracked as a separate
+result shape from the Serper/SerpApi `CheckResult` by design — see
+`lib/winston.ts`).
+
+**Note:** every page (and the PDF export footer) is watermarked "This
+tool is exclusively for Elite Resource Services Internal Team" — this is
+an internal tool, not meant for outside distribution.
 
 ## API keys — shared by default
 
