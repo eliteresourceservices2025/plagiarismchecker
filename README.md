@@ -83,6 +83,36 @@ result shape from the Serper/SerpApi `CheckResult` by design — see
 tool is exclusively for Elite Resource Services Internal Team" — this is
 an internal tool, not meant for outside distribution.
 
+## Login gate (email allowlist)
+
+The whole app sits behind a signed-cookie login gate — no Google OAuth, no
+Supabase, no signup page. It's just an email allowlist checked
+server-side:
+
+- Visiting any protected route with no valid session redirects to
+  `/login`, which asks for an email and POSTs it to `/api/auth/login`.
+- The server normalizes the email (lowercase, trimmed) and checks it
+  against `APPROVED_EMAILS` (a comma-separated env var). If it matches, a
+  `{ email, exp }` payload is HMAC-SHA256-signed with `AUTH_SECRET` and set
+  as an HTTP-only, Secure, `SameSite=Strict` cookie good for 7 days, and
+  the client is sent to the dashboard.
+- If the email isn't on the list, the API returns 401 and the client shows
+  `/denied` — "This tool is for authorized ERS team members only."
+- `proxy.ts` (Next 16's renamed `middleware.ts` — see [Migration to
+  Proxy](https://nextjs.org/docs/app/api-reference/file-conventions/proxy#migration-to-proxy))
+  runs on every request to a protected route, re-verifies the cookie's
+  signature, expiry, and that the email is still on the allowlist, and
+  clears the cookie + redirects to `/login` if any check fails — so
+  removing someone from `APPROVED_EMAILS` locks them out immediately, no
+  waiting for the cookie to expire.
+- `ADMIN_EMAIL` (optional) is checked in `proxy.ts` and forwarded as an
+  `x-is-admin` header — reserved for a future admin panel, unused in the
+  MVP. Team membership itself is managed by editing `APPROVED_EMAILS` in
+  the Vercel dashboard and redeploying (~1 min), not through any in-app UI.
+
+Required env vars: `APPROVED_EMAILS`, `AUTH_SECRET` (generate with
+`openssl rand -hex 32`), and `ADMIN_EMAIL`. See `.env.example`.
+
 ## API keys — shared by default
 
 Unlike the original per-user-LocalStorage-only design, this app now
@@ -163,6 +193,9 @@ immediately with no Settings configuration.
 1. Push this repo to GitHub (already done if you're reading this on GitHub).
 2. Import the repo into Vercel.
 3. In Vercel → Project Settings → Environment Variables, add
+   `APPROVED_EMAILS`, `AUTH_SECRET`, and `ADMIN_EMAIL` (see [Login
+   gate](#login-gate-email-allowlist) above) — without these the login
+   screen can't authenticate anyone. Then add
    `SERPER_API_KEY` and `SERPAPI_API_KEY` with your real values (never
    commit real keys to the repo — `.env.local` is git-ignored for exactly
    this reason). Add `WINSTON_API_KEY` too if you want the Winston AI

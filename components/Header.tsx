@@ -1,6 +1,7 @@
 "use client";
 
-import { History, Moon, ScanSearch, Settings, Sun } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { History, LogOut, Moon, ScanSearch, Settings, Sun } from "lucide-react";
 import CreditGauge from "./CreditGauge";
 import { useTheme } from "@/hooks/useTheme";
 import type { CreditSummary } from "@/lib/types";
@@ -13,6 +14,13 @@ interface HeaderProps {
 
 export default function Header({ onSettingsClick, onHistoryClick, creditSummary }: HeaderProps) {
   const { theme, toggle } = useTheme();
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200/80 dark:border-slate-700/80 bg-white/80 dark:bg-slate-900/80 px-4 py-3 backdrop-blur-sm sm:px-6">
@@ -50,6 +58,14 @@ export default function Header({ onSettingsClick, onHistoryClick, creditSummary 
         >
           <Settings size={16} />
           <span className="hidden sm:inline">Settings</span>
+        </button>
+        <button
+          onClick={handleLogout}
+          className="flex items-center rounded-md p-2 text-slate-600 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-[0.97]"
+          title="Sign out"
+          aria-label="Sign out"
+        >
+          <LogOut size={16} />
         </button>
       </div>
     </header>
